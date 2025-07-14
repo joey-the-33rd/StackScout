@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StackScout Results</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="max-w-4xl mx-auto mt-10">
+    <h1 class="text-3xl font-bold mb-4 text-center">📄 Job Results</h1>
+    <a href="/" class="inline-block mb-6 text-blue-600 hover:underline">&larr; Back to Home</a>
+    {% for job in results %}
+    <div class="bg-white p-5 mb-4 rounded-lg shadow">
+      <h2 class="text-xl font-semibold">{{ job['Role'] }} @ {{ job['Company'] }}</h2>
+      <p><strong>Tech Stack:</strong> {{ job['Tech Stack'] }}</p>
+      <p><strong>Type:</strong> {{ job['Type'] }} | <strong>Salary:</strong> {{ job['Salary'] }}</p>
+      <p><strong>Contact:</strong> {{ job['Contact Person'] }} | {{ job['Email'] }}</p>
+      <a href="{{ job['Link'] }}" class="text-blue-500 hover:underline" target="_blank">View Job</a>
+    </div>
+    {% endfor %}
+  </div>
+</body>
+</html>
