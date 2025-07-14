@@ -1,24 +1,82 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium_stealth import stealth
+from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
 import time
 import requests
+import random
+from dotenv import load_dotenv
+import os
 
 def get_driver():
     options = Options()
-    options.add_argument("--headless=new")  # Updated headless mode for newer Chrome versions
+    # Use headful mode (non-headless) to better simulate user behavior
+    # Comment out headless argument
+    # options.add_argument("--headless=new")  # Updated headless mode for newer Chrome versions
+
+    # Randomize user agent
+    ua = UserAgent()
+    user_agent = ua.random
+    options.add_argument(f'user-agent={user_agent}')
+
+    # Additional options for stealth
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+
+    # Disable automation flags
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+
     try:
         driver = webdriver.Chrome(options=options)
+
+        # Apply selenium-stealth
+        stealth(driver,
+                languages=["en-US", "en"],
+                vendor="Google Inc.",
+                platform="Win32",
+                webgl_vendor="Intel Inc.",
+                renderer="Intel Iris OpenGL Engine",
+                fix_hairline=True,
+                )
+
+        # Additional stealth: modify navigator.webdriver property
+        driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+            'source': '''
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                })
+            '''
+        })
+
+        driver.set_page_load_timeout(60)  # Increased page load timeout to 60 seconds
     except WebDriverException as e:
         print(f"Error initializing Chrome driver: {e}")
         driver = None
     return driver
 
 def scrape_google_jobs(driver):
+    """
+    Attempts to scrape job listings from Google Jobs using a Selenium driver.
+    
+    Note:
+    - This function is currently a placeholder due to the limitations imposed by the dynamic nature of Google's job listings page and its complex structure.
+    - No job listings are returned by this scraper at this time.
+
+    Args:
+    - driver (selenium.webdriver.Chrome): Selenium WebDriver instance used to interact with web pages.
+
+    Returns:
+    - list: An empty list as no scraping is performed.
+    """
+
     print("Google Jobs scraping is currently a placeholder due to dynamic content and page structure limitations.")
     print("This scraper does not return job listings at this time.")
     return []
@@ -26,6 +84,24 @@ def scrape_google_jobs(driver):
 import time
 
 def scrape_remoteok():
+    """
+    Scrapes the top 5 job listings from Remote OK using requests and BeautifulSoup.
+
+    Note:
+    - This scraper is subject to rate limiting and may not work if you have made too many requests recently.
+    - This scraper does not return job listings if the rate limit has been exceeded.
+
+    Returns:
+    - list: A list of dictionaries containing job information with the following keys:
+        - Company
+        - Role
+        - Tech Stack
+        - Type (always "Remote")
+        - Salary (always "N/A")
+        - Contact Person (always "N/A")
+        - Email (always "N/A")
+        - Link
+    """
     jobs = []
     url = "https://remoteok.com/remote-dev-jobs"
     headers = {
@@ -65,21 +141,60 @@ def scrape_remoteok():
     return jobs
 
 # Placeholder functions for platforms to be implemented
-def scrape_indeed(driver):
-    print("Scraping Indeed jobs...")
+import random
+
+def scrape_indeed(driver=None, proxies=None):
+    """
+    Scrapes the top 5 job listings from Indeed's remote developer jobs page using Selenium with stealth and session handling.
+
+    Args:
+    - driver (selenium.webdriver.Chrome): Selenium WebDriver instance used to interact with web pages.
+    - proxies: Ignored in this implementation.
+
+    Returns:
+    - list: A list of dictionaries containing job information with the following keys:
+        - Company
+        - Role
+        - Tech Stack (job summary)
+        - Type (location)
+        - Salary
+        - Contact Person (always "N/A")
+        - Email (always "N/A")
+        - Link
+    """
+    print("Scraping Indeed jobs using Selenium with stealth...")
     jobs = []
     if not driver:
         print("No Selenium driver available, skipping Indeed scraping.")
         return jobs
 
     try:
-        # Navigate to Indeed remote developer jobs page
         url = "https://www.indeed.com/jobs?q=remote+developer&l="
         driver.get(url)
-        time.sleep(5)  # Wait for page to load
+
+        # Check for CAPTCHA or login page
+        if "captcha" in driver.page_source.lower() or "verify" in driver.page_source.lower():
+            print("CAPTCHA or verification page detected. Attempting to wait for manual solve for up to 3 minutes...")
+            for i in range(18):
+                time.sleep(10)
+                driver.refresh()
+                if "captcha" not in driver.page_source.lower() and "verify" not in driver.page_source.lower():
+                    print("CAPTCHA solved, continuing scraping.")
+                    break
+            else:
+                print("CAPTCHA not solved within timeout, skipping Indeed scraping.")
+                return []
+        wait = WebDriverWait(driver, 30)
+        try:
+            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.tapItem")))
+        except Exception as e:
+            print(f"Timeout waiting for job cards: {e}")
+            print("Page source snippet for debugging:")
+            print(driver.page_source[:1000])  # Print first 1000 chars of page source for debugging
+            return []
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
-        job_cards = soup.find_all("a", class_="tapItem")[:5]  # Limit to top 5 jobs
+        job_cards = soup.find_all("a", class_="tapItem")[:5]
 
         for job_card in job_cards:
             title_elem = job_card.find("h2", class_="jobTitle")
@@ -107,7 +222,9 @@ def scrape_indeed(driver):
                 "Link": job_link
             })
     except Exception as e:
+        import traceback
         print(f"Error scraping Indeed: {e}")
+        traceback.print_exc()
 
     return jobs
 
