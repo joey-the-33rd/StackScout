@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+selenium
+python-dotenv
+jinja2
+requests
+beautifulsoup4
