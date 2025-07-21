@@ -20,7 +20,10 @@ try:
 except ImportError as e:
     raise ImportError("SSL support is required but missing. Please ensure your Python environment includes the 'ssl' module.")
 
-load_dotenv()
+from dotenv import load_dotenv
+import os
+
+load_dotenv(dotenv_path=os.path.join("templates", ".env"))
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -31,21 +34,25 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Add debug log to confirm environment variables are loaded
+logger.info(f"Loaded LINKEDIN_EMAIL: {os.getenv('LINKEDIN_EMAIL')}")
+logger.info(f"Loaded LINKEDIN_PASSWORD: {'***' if os.getenv('LINKEDIN_PASSWORD') else None}")
+
 def get_driver():
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     try:
         driver = webdriver.Chrome(options=options)
-        logger.info("Chrome driver initialized successfully.")
+        logger.info("🚀 Chrome driver initialized successfully.")
     except Exception as e:
-        logger.error(f"Error initializing Chrome driver: {e}")
+        logger.error(f"🛑 Error initializing Chrome driver: {e}")
         driver = None
     return driver
 
 def login_linkedin(driver, email, password):
     if not email or not password:
-        logger.error("LinkedIn credentials are missing.")
+        logger.error("❌ LinkedIn credentials are missing.")
         return False
     try:
         driver.get("https://www.linkedin.com/login")
@@ -57,14 +64,14 @@ def login_linkedin(driver, email, password):
         wait.until(EC.url_contains("feed"))
         return True
     except Exception as e:
-        logger.error(f"LinkedIn login failed: {e}")
+        logger.error(f"😓 LinkedIn login failed: {e}")
         return False
 
 from typing import Optional
 from bs4.element import Tag
 
 def scrape_linkedin(driver):
-    print("Scraping LinkedIn...")
+    print("🕷️ Scraping LinkedIn...")
     jobs = []
     driver.get("https://www.linkedin.com/jobs/search/?keywords=remote%20python%20developer")
     wait = WebDriverWait(driver, 10)
@@ -88,7 +95,7 @@ def scrape_linkedin(driver):
     return jobs
 
 def scrape_indeed(driver):
-    print("Scraping Indeed...")
+    print("🕷️ Scraping Indeed...")
     jobs = []
     driver.get("https://www.indeed.com/jobs?q=remote+python+developer&l=Worldwide")
     wait = WebDriverWait(driver, 10)
@@ -113,7 +120,7 @@ def scrape_indeed(driver):
     return jobs
 
 def scrape_arc_dev(driver):
-    print("Scraping Arc.dev...")
+    print("🕷️ Scraping Arc.dev...")
     jobs = []
     driver.get("https://arc.dev/remote-jobs?search=python")
     time.sleep(5)
@@ -138,12 +145,12 @@ def scrape_arc_dev(driver):
 def run_scraper(email, password):
     driver = get_driver()
     if driver is None:
-        logger.error("Web driver could not be initialized. Aborting scraping.")
+        logger.error("⚠️ Web driver could not be initialized. Aborting scraping.")
         return []
 
     login_success = login_linkedin(driver, email, password)
     if not login_success:
-        logger.warning("LinkedIn login failed or credentials missing. Continuing without login.")
+        logger.warning("⚠️ LinkedIn login failed or credentials missing. Continuing without login.")
 
     results = []
 
@@ -166,7 +173,7 @@ def run_scraper(email, password):
                 "Type": "Remote"
             })
     except Exception as e:
-        logger.error(f"Google Jobs scraping failed: {e}")
+        logger.error(f"🛑 Google Jobs scraping failed: {e}")
 
     # Remote OK
     try:
@@ -189,22 +196,22 @@ def run_scraper(email, password):
                 "Link": link
             })
     except Exception as e:
-        logger.error(f"Remote OK scraping failed: {e}")
+        logger.error(f"❌ Remote OK scraping failed: {e}")
 
     try:
         results += scrape_indeed(driver)
     except Exception as e:
-        logger.error(f"Indeed scraping failed: {e}")
+        logger.error(f"❌ Indeed scraping failed: {e}")
 
     try:
         results += scrape_arc_dev(driver)
     except Exception as e:
-        logger.error(f"Arc.dev scraping failed: {e}")
+        logger.error(f"❌ Arc.dev scraping failed: {e}")
 
     try:
         results += scrape_linkedin(driver)
     except Exception as e:
-        logger.error(f"LinkedIn scraping failed: {e}")
+        logger.error(f"❌LinkedIn scraping failed: {e}")
 
     driver.quit()
     return results
