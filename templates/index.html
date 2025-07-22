@@ -8,12 +8,32 @@
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="max-w-2xl mx-auto mt-20 text-center">
-    <h1 class="text-4xl font-bold mb-6">🚀 StackScout</h1>
-    <p class="mb-4">Click the button below to scout the top 5 latest remote dev jobs matching your stack.</p>
-    <form method="post" action="/run">
-      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
-        🔍 Run Job Search
-      </button>
+    <h1 class="text-4xl font-bold mb-6">🛰️ StackScout</h1>
+    <p class="mb-4">Search the top latest remote dev jobs matching your stack.</p>
+    <form method="post" action="/run" class="space-y-4 text-left">
+      <div>
+        <label for="keywords" class="block font-semibold mb-1">Keywords</label>
+        <input type="text" id="keywords" name="keywords" placeholder="e.g. python, react" class="w-full px-3 py-2 border rounded" />
+      </div>
+      <div>
+        <label for="location" class="block font-semibold mb-1">Location</label>
+        <input type="text" id="location" name="location" placeholder="e.g. remote, USA" class="w-full px-3 py-2 border rounded" />
+      </div>
+      <div>
+        <label for="job_type" class="block font-semibold mb-1">Job Type</label>
+        <select id="job_type" name="job_type" class="w-full px-3 py-2 border rounded">
+          <option value="">Any</option>
+          <option value="remote">Remote</option>
+          <option value="full-time">Full-time</option>
+          <option value="part-time">Part-time</option>
+          <option value="contract">Contract</option>
+        </select>
+      </div>
+      <div class="text-center">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+          🔍 Run Job Search
+        </button>
+      </div>
     </form>
   </div>
 </body>
