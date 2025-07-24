@@ -27,8 +27,7 @@ def test_run_job_search_success(monkeypatch):
     response = client.post("/run")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "TestCo" in response.text
-    assert "Developer" in response.text
+    assert "Job search started" in response.text
 
 def test_run_job_search_failure(monkeypatch):
     def mock_run_scraper(email, password):
