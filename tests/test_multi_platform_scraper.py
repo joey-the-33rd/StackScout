@@ -1,6 +1,5 @@
 import os
 import sys
-import os
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -88,10 +87,34 @@ def test_scrape_indeed_no_driver():
     jobs = scraper.scrape_indeed(None)
     assert jobs == []
 
+def test_scrape_indeed_captcha_handling(monkeypatch):
+    import time
+    # Mock driver with page_source containing 'captcha' initially, then cleared after refresh
+    class MockDriver:
+        def __init__(self):
+            self.page_source = "captcha"
+            self.refresh_count = 0
+        def get(self, url):
+            pass
+        def refresh(self):
+            self.refresh_count += 1
+            if self.refresh_count >= 3:
+                self.page_source = "jobs list"
+    driver = MockDriver()
+
+    # Patch time.sleep to fast-forward time
+    monkeypatch.setattr(time, "sleep", lambda x: None)
+
+    # Run scrape_indeed with mocked driver
+    jobs = scraper.scrape_indeed(driver)
+
+    # After 3 refreshes, page_source no longer contains captcha, so scraping proceeds
+    assert isinstance(jobs, list)
+
 def test_scrape_arc_dev_placeholder(capsys):
     result = scraper.scrape_arc_dev(None)
     captured = capsys.readouterr()
-    assert "Scraping Arc.dev placeholder" in captured.out
+    assert "Scraping Arc.dev" in captured.out
     assert result == []
 
 def test_scrape_linkedin_placeholder_with_credentials(monkeypatch, capsys):

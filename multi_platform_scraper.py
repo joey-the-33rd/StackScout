@@ -237,16 +237,85 @@ def scrape_indeed(driver=None, proxies=None):
     return jobs
 
 def scrape_weworkremotely(driver):
-    print("Scraping We Work Remotely placeholder... (not implemented)")
-    return []
+    print("Scraping We Work Remotely...")
+    jobs = []
+    if not driver:
+        print("No Selenium driver available, skipping We Work Remotely scraping.")
+        return jobs
+    try:
+        driver.get("https://weworkremotely.com/remote-jobs/search?term=python")
+        time.sleep(5)  # Wait for page to load
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        job_sections = soup.find_all("section", class_="jobs")[:1]  # Limit to first section
+        for section in job_sections:
+            job_listings = section.find_all("li", class_="feature")[:5]
+            for job in job_listings:
+                title = job.find("span", class_="title")
+                company = job.find("span", class_="company")
+                link_tag = job.find("a", href=True)
+                jobs.append({
+                    "Company": company.get_text(strip=True) if company else "N/A",
+                    "Role": title.get_text(strip=True) if title else "N/A",
+                    "Link": "https://weworkremotely.com" + link_tag["href"] if link_tag else "N/A",
+                    "Tech Stack": "Python, Remote",
+                    "Type": "Remote",
+                    "Salary": "N/A",
+                    "Contact Person": "N/A",
+                    "Email": "N/A"
+                })
+    except Exception as e:
+        print(f"We Work Remotely scraping failed: {e}")
+    return jobs
 
 def scrape_ziprecruiter(driver):
     print("Scraping ZipRecruiter placeholder... (not implemented)")
     return []
 
 def scrape_arc_dev(driver):
-    print("Scraping Arc.dev placeholder... (not implemented)")
-    return []
+    print("Scraping Arc.dev...")
+    jobs = []
+    if not driver:
+        print("No Selenium driver available, skipping Arc.dev scraping.")
+        return jobs
+    try:
+        driver.get("https://arc.dev/remote-jobs?search=python")
+        time.sleep(5)  # Wait for page to load
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        job_cards = soup.select("div.job-listing")[:5]
+        for card in job_cards:
+            title = card.find("h3")
+            company = card.find("div", class_="company-name")
+            link_tag = card.find("a", href=True)
+            jobs.append({
+                "Company": company.get_text(strip=True) if company else "N/A",
+                "Role": title.get_text(strip=True) if title else "N/A",
+                "Link": "https://arc.dev" + link_tag["href"] if link_tag else "N/A",
+                "Tech Stack": "Python, Remote",
+                "Type": "Remote",
+                "Salary": "N/A",
+                "Contact Person": "N/A",
+                "Email": "N/A"
+            })
+    except Exception as e:
+        print(f"Arc.dev scraping failed: {e}")
+    return jobs
+
+def login_linkedin(driver, email, password):
+    if not email or not password:
+        print("LinkedIn credentials missing.")
+        return False
+    try:
+        driver.get("https://www.linkedin.com/login")
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.presence_of_element_located((By.ID, "username")))
+        driver.find_element(By.ID, "username").send_keys(email)
+        driver.find_element(By.ID, "password").send_keys(password)
+        driver.find_element(By.XPATH, "//button[@type='submit']").click()
+        wait.until(EC.url_contains("feed"))
+        return True
+    except Exception as e:
+        print(f"LinkedIn login failed: {e}")
+        return False
 
 def scrape_linkedin(driver):
     if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
@@ -278,7 +347,7 @@ def scrape_linkedin(driver):
         print(f"LinkedIn scraping failed: {e}")
     return jobs
 
-def main():
+def main() -> None:
     driver = get_driver()
     results = []
 
@@ -301,18 +370,17 @@ def main():
         with open("multi_platform_jobs.md", "w", encoding="utf-8") as f:
             for job in results:
                 tech_stack = " ".join(job['Tech Stack'].split())
-                f.write(f"""
-- **Company:** {job['Company']}
-- **Role:** {job['Role']}
-- **Tech Stack:** {tech_stack}
-- **Type:** {job['Type']}
-- **Salary:** {job['Salary']}
-- **Contact Person:** {job['Contact Person']}
-- **Email/Contact:** {job['Email']}
-- **Link:** {job['Link']}
-
----
-""")
+                f.write(
+                    f"- **Company:** {job['Company']}\n"
+                    f"- **Role:** {job['Role']}\n"
+                    f"- **Tech Stack:** {tech_stack}\n"
+                    f"- **Type:** {job['Type']}\n"
+                    f"- **Salary:** {job['Salary']}\n"
+                    f"- **Contact Person:** {job['Contact Person']}\n"
+                    f"- **Email/Contact:** {job['Email']}\n"
+                    f"- **Link:** {job['Link']}\n\n"
+                    "---\n"
+                )
         print(f"Saved {len(results)} jobs to multi_platform_jobs.md")
     except IOError as e:
         print(f"Error writing to file: {e}")
