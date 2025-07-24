@@ -11,6 +11,10 @@
     <h1 class="text-3xl font-bold mb-4 text-center">💼 Job Results</h1>
     <a href="/" class="inline-block mb-6 text-blue-600 hover:underline">&larr; Back to Home</a>
 
+    {% if message %}
+      <p class="text-center text-blue-600 font-semibold mb-4">{{ message }}</p>
+    {% endif %}
+
     {% if results %}
       <div class="space-y-4">
         {% for job in results %}
