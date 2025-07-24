@@ -8,17 +8,38 @@
 </head>
 <body class="bg-gray-100 text-gray-800">
   <div class="max-w-4xl mx-auto mt-10">
-    <h1 class="text-3xl font-bold mb-4 text-center">📄 Job Results</h1>
+    <h1 class="text-3xl font-bold mb-4 text-center">💼 Job Results</h1>
     <a href="/" class="inline-block mb-6 text-blue-600 hover:underline">&larr; Back to Home</a>
-    {% for job in results %}
-    <div class="bg-white p-5 mb-4 rounded-lg shadow">
-      <h2 class="text-xl font-semibold">{{ job['Role'] }} @ {{ job['Company'] }}</h2>
-      <p><strong>Tech Stack:</strong> {{ job['Tech Stack'] }}</p>
-      <p><strong>Type:</strong> {{ job['Type'] }} | <strong>Salary:</strong> {{ job['Salary'] }}</p>
-      <p><strong>Contact:</strong> {{ job['Contact Person'] }} | {{ job['Email'] }}</p>
-      <a href="{{ job['Link'] }}" class="text-blue-500 hover:underline" target="_blank">View Job</a>
-    </div>
-    {% endfor %}
+
+    {% if results %}
+      <div class="space-y-4">
+        {% for job in results %}
+        <div class="bg-white p-5 rounded-lg shadow flex flex-col md:flex-row md:justify-between md:items-center">
+          <div class="mb-3 md:mb-0">
+            <h2 class="text-xl font-semibold">{{ job['Role'] }} @ {{ job['Company'] }}</h2>
+            <p class="text-sm text-gray-600"><strong>Tech Stack:</strong> {{ job['Tech Stack'] }}</p>
+            <p class="text-sm text-gray-600"><strong>Type:</strong> {{ job['Type'] }} | <strong>Salary:</strong> {{ job['Salary'] }}</p>
+            <p class="text-sm text-gray-600"><strong>Contact:</strong> {{ job['Contact Person'] }} | {{ job['Email'] }}</p>
+          </div>
+          <div class="flex flex-col md:items-end">
+            <a href="{{ job['Link'] }}" class="text-blue-500 hover:underline mb-2" target="_blank" rel="noopener noreferrer">View Job</a>
+            <button class="bg-yellow-400 hover:bg-yellow-500 text-white font-semibold py-1 px-3 rounded shadow" onclick="alert('Save job feature coming soon!')">⭐ Save Job</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Pagination placeholder -->
+      <div class="mt-6 flex justify-center space-x-2">
+        <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400" disabled>Previous</button>
+        <button class="px-3 py-1 bg-blue-600 text-white rounded">1</button>
+        <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">2</button>
+        <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">3</button>
+        <button class="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400">Next</button>
+      </div>
+    {% else %}
+      <p class="text-center text-gray-600">No job results found.</p>
+    {% endif %}
   </div>
 </body>
 </html>
