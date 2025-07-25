@@ -41,8 +41,17 @@ def get_driver():
     options.add_experimental_option('useAutomationExtension', False)
 
     try:
+<<<<<<< Updated upstream
         chrome_driver_path = ChromeDriverManager().install()
         service = Service(chrome_driver_path)
+=======
+        try:
+            driver_path = ChromeDriverManager().install()
+        except Exception as e:
+            print(f"Error installing ChromeDriver via webdriver-manager: {e}")
+            return None
+        service = Service(driver_path)
+>>>>>>> Stashed changes
         driver = webdriver.Chrome(service=service, options=options)
 
         # Apply selenium-stealth
