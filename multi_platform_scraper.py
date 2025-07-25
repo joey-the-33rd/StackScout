@@ -42,15 +42,21 @@ def get_driver():
 
     try:
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
         chrome_driver_path = ChromeDriverManager().install()
         service = Service(chrome_driver_path)
 =======
+=======
+>>>>>>> Stashed changes
         try:
             driver_path = ChromeDriverManager().install()
         except Exception as e:
             print(f"Error installing ChromeDriver via webdriver-manager: {e}")
             return None
         service = Service(driver_path)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
         driver = webdriver.Chrome(service=service, options=options)
 
