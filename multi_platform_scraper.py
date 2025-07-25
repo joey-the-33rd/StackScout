@@ -13,6 +13,7 @@ import requests
 import random
 from dotenv import load_dotenv
 import os
+from webdriver_manager.chrome import ChromeDriverManager
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -40,7 +41,7 @@ def get_driver():
     options.add_experimental_option('useAutomationExtension', False)
 
     try:
-        service = Service('/usr/local/bin/chromedriver')
+        service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
         # Apply selenium-stealth
