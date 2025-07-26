@@ -52,10 +52,9 @@ def login_linkedin(driver, email, password):
         driver.get("https://www.linkedin.com/login")
         wait = WebDriverWait(driver, 15)
         wait.until(EC.presence_of_element_located((By.ID, "username")))
-        logger.info("Entering username.")
+        # Removed logging of username and password entry to avoid credential exposure
         driver.find_element(By.ID, "username").clear()
         driver.find_element(By.ID, "username").send_keys(email)
-        logger.info("Entering password.")
         driver.find_element(By.ID, "password").clear()
         driver.find_element(By.ID, "password").send_keys(password)
         logger.info("Clicking login button.")
@@ -79,11 +78,12 @@ def login_linkedin(driver, email, password):
             logger.warning(f"LinkedIn login ended on unexpected page: {current_url}")
             return False
     except Exception as e:
-        logger.error(f"LinkedIn login failed: {e}", exc_info=True)
+        # Avoid logging exception details to prevent sensitive info exposure
+        logger.error("LinkedIn login failed.")
         try:
             screenshot_path = "linkedin_login_error.png"
             driver.save_screenshot(screenshot_path)
-            logger.info(f"Saved screenshot of login failure to {screenshot_path}")
+            logger.info(f"Saved screenshot of login failure to {screenshot_path} (may contain sensitive info, handle with care)")
         except Exception as se:
             logger.error(f"Failed to save screenshot: {se}")
         return False
@@ -130,7 +130,12 @@ def scrape_indeed(driver):
         link_tag = job_card.find("a")  # type: ignore
         href = link_tag.get("href") if isinstance(link_tag, Tag) else None
         if href and isinstance(href, str):
-            link = "https://www.indeed.com" + href
+            if href.startswith("/"):
+                link = "https://www.indeed.com" + href
+            elif href.startswith("http"):
+                link = href
+            else:
+                link = "N/A"
         else:
             link = "N/A"
         jobs.append({
