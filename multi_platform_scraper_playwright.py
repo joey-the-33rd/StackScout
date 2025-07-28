@@ -77,14 +77,16 @@ async def scrape_linkedin(context):
     await page.fill("#password", LINKEDIN_PASSWORD)
     await page.click("button[type='submit']")
     try:
-        # Wait for URL starting with https://www.linkedin.com/feed with 60s timeout
+        # Wait for URL starting with https://www.linkedin.com/feed with 30s timeout
         await page.wait_for_url(lambda url: url.startswith("https://www.linkedin.com/feed"), timeout=30000)
         logger.info("Successfully logged in and navigated to LinkedIn feed.")
     except Exception as e:
         logger.error("Timeout or error waiting for LinkedIn feed URL.")
         # Retry login once
         await page.goto("https://www.linkedin.com/login")
+        await page.fill("#username", "")  # Clear field first
         await page.fill("#username", LINKEDIN_EMAIL)
+        await page.fill("#password", "")  # Clear field first
         await page.fill("#password", LINKEDIN_PASSWORD)
         await page.click("button[type='submit']")
         try:
