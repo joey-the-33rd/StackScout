@@ -65,16 +65,38 @@ async def scrape_weworkremotely(context):
     return jobs
 
 async def scrape_linkedin(context):
+    import logging
+    logger = logging.getLogger("stackscout_web")
     if not LINKEDIN_EMAIL or not LINKEDIN_PASSWORD:
-        print("LinkedIn credentials missing. Skipping LinkedIn scraping.")
+        logger.warning("LinkedIn credentials missing. Skipping LinkedIn scraping.")
         return []
-    print(f"Using LinkedIn credentials for {LINKEDIN_EMAIL} to scrape jobs.")
+    # Removed logging of LinkedIn email to avoid credential exposure
     page = await context.new_page()
     await page.goto("https://www.linkedin.com/login")
     await page.fill("#username", LINKEDIN_EMAIL)
     await page.fill("#password", LINKEDIN_PASSWORD)
     await page.click("button[type='submit']")
-    await page.wait_for_url("https://www.linkedin.com/feed/")
+    try:
+        # Wait for URL starting with https://www.linkedin.com/feed with 30s timeout
+        await page.wait_for_url(lambda url: url.startswith("https://www.linkedin.com/feed"), timeout=30000)
+        logger.info("Successfully logged in and navigated to LinkedIn feed.")
+    except Exception as e:
+        logger.error("Timeout or error waiting for LinkedIn feed URL.")
+        # Retry login once
+        await page.goto("https://www.linkedin.com/login")
+        await page.fill("#username", "")  # Clear field first
+        await page.fill("#username", LINKEDIN_EMAIL)
+        await page.fill("#password", "")  # Clear field first
+        await page.fill("#password", LINKEDIN_PASSWORD)
+        await page.click("button[type='submit']")
+        try:
+            await page.wait_for_url(lambda url: url.startswith("https://www.linkedin.com/feed"), timeout=30000)
+            logger.info("Retry successful: logged in and navigated to LinkedIn feed.")
+        except Exception:
+            logger.error("Retry failed waiting for LinkedIn feed URL.")
+            await page.close()
+            return []
+    # Proceed to jobs page
     await page.goto("https://www.linkedin.com/jobs/search/?keywords=remote%20python%20developer")
     await page.wait_for_selector("div.base-card")
     content = await page.content()
