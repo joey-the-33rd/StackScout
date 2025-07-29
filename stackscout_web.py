@@ -1,4 +1,3 @@
- # stackscout_web.py
 import os
 import time
 import requests
@@ -31,62 +30,75 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def get_driver():
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
     try:
         driver = webdriver.Chrome(options=options)
-        logger.info("Chrome driver initialized successfully.")
+        logger.info("✅ Chrome driver initialized successfully.")
     except Exception as e:
-        logger.error(f"Error initializing Chrome driver: {e}")
+        logger.error(f"❌ Error initializing Chrome driver: {e}")
         driver = None
     return driver
 
 def login_linkedin(driver, email, password):
     if not email or not password:
-        logger.error("LinkedIn credentials are missing.")
+        logger.error("❌ LinkedIn credentials are missing.")
         return False
-    try:
-        logger.info("Navigating to LinkedIn login page.")
-        driver.get("https://www.linkedin.com/login")
-        wait = WebDriverWait(driver, 15)
-        wait.until(EC.presence_of_element_located((By.ID, "username")))
-        # Removed logging of username and password entry to avoid credential exposure
-        driver.find_element(By.ID, "username").clear()
-        driver.find_element(By.ID, "username").send_keys(email)
-        driver.find_element(By.ID, "password").clear()
-        driver.find_element(By.ID, "password").send_keys(password)
-        logger.info("Clicking login button.")
-        driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        # Wait for either feed page or puzzle page
+    max_attempts = 3
+    for attempt in range(max_attempts):
         try:
-            wait.until(EC.any_of(
-                EC.url_contains("feed"),
-                EC.presence_of_element_located((By.ID, "captcha-internal"))
-            ))
-        except Exception:
-            pass
-        current_url = driver.current_url
-        if "feed" in current_url:
-            logger.info("LinkedIn login successful.")
-            return True
-        elif "captcha" in current_url or driver.find_elements(By.ID, "captcha-internal"):
-            logger.warning("LinkedIn login blocked by puzzle/captcha page.")
-            return False
-        else:
-            logger.warning(f"LinkedIn login ended on unexpected page: {current_url}")
-            return False
-    except Exception as e:
-        # Avoid logging exception details to prevent sensitive info exposure
-        logger.error("LinkedIn login failed.")
-        try:
-            screenshot_path = "linkedin_login_error.png"
-            driver.save_screenshot(screenshot_path)
-            logger.info(f"Saved screenshot of login failure to {screenshot_path} (may contain sensitive info, handle with care)")
-        except Exception as se:
-            logger.error(f"Failed to save screenshot: {se}")
-        return False
+            logger.info("ℹ️ Navigating to LinkedIn login page.")
+            driver.get("https://www.linkedin.com/login")
+            wait = WebDriverWait(driver, 15)
+            wait.until(EC.presence_of_element_located((By.ID, "username")))
+            # Removed logging of username and password entry to avoid credential exposure
+            driver.find_element(By.ID, "username").clear()
+            driver.find_element(By.ID, "username").send_keys(email)
+            driver.find_element(By.ID, "password").clear()
+            driver.find_element(By.ID, "password").send_keys(password)
+            logger.info("ℹ️ Clicking login button.")
+            driver.find_element(By.XPATH, "//button[@type='submit']").click()
+            # Wait for either feed page or puzzle page
+            try:
+                wait.until(EC.any_of(
+                    EC.url_contains("feed"),
+                    EC.presence_of_element_located((By.ID, "captcha-internal"))
+                ))
+            except Exception:
+                pass
+            current_url = driver.current_url
+            if "feed" in current_url:
+                logger.info("✅ LinkedIn login successful.")
+                return True
+            elif "captcha" in current_url or driver.find_elements(By.ID, "captcha-internal"):
+                logger.warning("⚠️ LinkedIn login blocked by puzzle/captcha page.")
+                if attempt < max_attempts - 1:
+                    logger.info(f"Retrying LinkedIn login, attempt {attempt + 2} of {max_attempts}")
+                    time.sleep(5)
+                    continue
+                else:
+                    return False
+            else:
+                logger.warning(f"⚠️ LinkedIn login ended on unexpected page: {current_url}")
+                return False
+        except Exception as e:
+            # Avoid logging exception details to prevent sensitive info exposure
+            logger.error("❌ LinkedIn login failed.")
+            try:
+                screenshot_path = "linkedin_login_error.png"
+                driver.save_screenshot(screenshot_path)
+                logger.info(f"ℹ️ Saved screenshot of login failure to {screenshot_path} (may contain sensitive info, handle with care)")
+            except Exception as se:
+                logger.error(f"❌ Failed to save screenshot: {se}")
+            if attempt < max_attempts - 1:
+                logger.info(f"Retrying LinkedIn login after failure, attempt {attempt + 2} of {max_attempts}")
+                time.sleep(5)
+                continue
+            else:
+                return False
 
 from typing import Optional
 from bs4.element import Tag
@@ -120,8 +132,12 @@ def scrape_indeed(driver):
     print("Scraping Indeed...")
     jobs = []
     driver.get("https://www.indeed.com/jobs?q=remote+python+developer&l=Worldwide")
-    wait = WebDriverWait(driver, 10)
-    wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.job_seen_beacon")))
+    wait = WebDriverWait(driver, 15)
+    try:
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.job_seen_beacon")))
+    except Exception as e:
+        logger.warning(f"Indeed page elements not found or took too long to load: {e}")
+        return jobs
     soup = BeautifulSoup(driver.page_source, "html.parser")
     job_cards = soup.select("div.job_seen_beacon")[:5]
     for job_card in job_cards:
@@ -176,19 +192,29 @@ def scrape_arc_dev(driver):
 def run_scraper(email, password):
     driver = get_driver()
     if driver is None:
-        logger.error("Web driver could not be initialized. Aborting scraping.")
+        logger.error("❌ Web driver could not be initialized. Aborting scraping.")
         return []
 
     login_success = login_linkedin(driver, email, password)
     if not login_success:
-        logger.warning("LinkedIn login failed or credentials missing. Continuing without login.")
+        logger.warning("⚠️ LinkedIn login failed or credentials missing. Continuing without login.")
 
     results = []
 
     # Google Jobs placeholder
     try:
         driver.get("https://www.google.com/search?q=remote+developer+jobs+react+python+node+fastapi+docker")
-        WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[jscontroller]")))
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div[jscontroller]")))
+                break
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} for Google Jobs wait failed: {e}")
+                if attempt == max_attempts - 1:
+                    logger.error(f"❌ Google Jobs scraping failed after {max_attempts} attempts due to timeout.")
+                    raise e
+                time.sleep(3)
         soup = BeautifulSoup(driver.page_source, "html.parser")
         job_cards = soup.select("div[jscontroller]")[:5]
         for job_card in job_cards:
@@ -206,8 +232,10 @@ def run_scraper(email, password):
                 "Salary": "N/A",
                 "Type": "Remote"
             })
+    except TimeoutError as e:
+        logger.error(f"❌ Google Jobs scraping failed: {e}", exc_info=True)
     except Exception as e:
-        logger.error(f"Google Jobs scraping failed: {e}", exc_info=True)
+        logger.error(f"❌ Google Jobs scraping failed: {e}", exc_info=True)
 
     # Remote OK
     try:
@@ -230,22 +258,22 @@ def run_scraper(email, password):
                 "Link": link
             })
     except Exception as e:
-        logger.error(f"Remote OK scraping failed: {e}")
+        logger.error(f"❌ Remote OK scraping failed: {e}")
 
     try:
         results += scrape_indeed(driver)
     except Exception as e:
-        logger.error(f"Indeed scraping failed: {e}")
+        logger.error(f"❌ Indeed scraping failed: {e}")
 
     try:
         results += scrape_arc_dev(driver)
     except Exception as e:
-        logger.error(f"Arc.dev scraping failed: {e}")
+        logger.error(f"❌ Arc.dev scraping failed: {e}")
 
     try:
         results += scrape_linkedin(driver)
     except Exception as e:
-        logger.error(f"LinkedIn scraping failed: {e}")
+        logger.error(f"❌ LinkedIn scraping failed: {e}")
 
     driver.quit()
     return results
@@ -262,6 +290,6 @@ def run_job_search(request: Request):
     try:
         results = run_scraper(email, password)
     except Exception as e:
-        logger.error(f"Job search failed: {e}")
+        logger.error(f"❌ Job search failed: {e}")
         return templates.TemplateResponse("results.html", {"request": request, "results": [], "error": "Job search failed. Please try again later."})
     return templates.TemplateResponse("results.html", {"request": request, "results": results})
