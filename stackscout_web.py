@@ -213,7 +213,7 @@ def run_scraper(email, password):
                 logger.warning(f"Attempt {attempt + 1} for Google Jobs wait failed: {e}")
                 if attempt == max_attempts - 1:
                     logger.error(f"❌ Google Jobs scraping failed after {max_attempts} attempts due to timeout.")
-                    raise TimeoutError("Google Jobs scraping timed out after multiple attempts") from e
+                    raise e
                 time.sleep(3)
         soup = BeautifulSoup(driver.page_source, "html.parser")
         job_cards = soup.select("div[jscontroller]")[:5]

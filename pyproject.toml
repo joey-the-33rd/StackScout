@@ -1,7 +1,7 @@
 [project]
-name = "auto-job-search-package"
+name = "StackScout"
 version = "0.1.3"
-description = "Add your description here"
+description = "An automated job scraper that finds the top 5 latest remote dev jobs matching your stack (React, Python, Node.js, Docker, etc.) from sites like Google Jobs, Remote OK & more"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -20,4 +20,5 @@ dependencies = [
     "uvicorn>=0.35.0",
     "webdriver-manager>=4.0.2",
     "playwright>=1.35.0",
+    "pytest-asyncio>=1.1.0",
 ]
