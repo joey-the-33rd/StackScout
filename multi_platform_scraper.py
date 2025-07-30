@@ -35,7 +35,8 @@ def get_driver():
     options.add_experimental_option('useAutomationExtension', False)
 
     try:
-        driver = webdriver.Chrome(options=options)
+        service = Service()  # Use default chromedriver from PATH or specify path here if needed
+        driver = webdriver.Chrome(service=service, options=options)
 
         # Apply selenium-stealth
         stealth(driver,
@@ -113,7 +114,7 @@ def scrape_remoteok():
             res = requests.get(url, headers=headers, timeout=10)
             if res.status_code == 429:
                 print(f"Received 429 Too Many Requests, retrying after delay... (Attempt {attempt + 1}/{max_retries})")
-                time.sleep(10 * (attempt + 1))  # Exponential backoff
+                time.sleep(10 * (2 ** attempt))  # True exponential backoff
                 continue
             res.raise_for_status()
             soup = BeautifulSoup(res.text, "html.parser")

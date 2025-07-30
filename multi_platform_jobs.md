@@ -1,55 +1,50 @@
-
-- **Company:** lobstr.io
+- **Company:** Orga AI
 - **Role:** None
-- **Tech Stack:** Python , Backend , Redis , Remote , API , Tech Lead , Docker , Cybersecurity , Architecture
+- **Tech Stack:** Python , Senior , Backend , Ops , Startup , AWS
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://remoteok.com/remote-jobs/remote-backend-developer-lobstr-io-python-scraping-celery-lobstr-io-1093607
+- **Link:** https://remoteok.com/remote-jobs/remote-senior-python-backend-engineer-orga-ai-1093458
 
 ---
-
-- **Company:** Open Architects
+- **Company:** Melapress
 - **Role:** None
-- **Tech Stack:** Engineer , DevOps , Python , Data , DataOps
+- **Tech Stack:** DevOps , Wordpress , PHP , JavaScript , Full Time , Ecommerce , API , English
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://remoteok.com/remote-jobs/remote-lead-data-engineer-open-architects-1093295
+- **Link:** https://remoteok.com/remote-jobs/remote-wordpress-plugins-themes-developer-melapress-1093690
 
 ---
-
-- **Company:** Lumenalta
+- **Company:** MailerLite
 - **Role:** None
-- **Tech Stack:** Engineer , JavaScript
+- **Tech Stack:** Front End
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://remoteok.com/remote-jobs/remote-javascript-fullstack-engineer-senior-lumenalta-1092919
+- **Link:** https://remoteok.com/remote-jobs/remote-web-developer-mailerlite-1093712
 
 ---
-
-- **Company:** LaunchBrightly
+- **Company:** Swipe Games
 - **Role:** None
-- **Tech Stack:** Engineer , JavaScript , Front End , API , GraphQL , Vue , Typescript , Dynamodb
+- **Tech Stack:** Front End , Backend , Full Stack , JavaScript , Node , React
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://remoteok.com/remote-jobs/remote-application-engineer-launchbrightly-1093516
+- **Link:** https://remoteok.com/remote-jobs/remote-senior-fullstack-developer-swipe-games-1093439
 
 ---
-
-- **Company:** Green Stuff World
+- **Company:** Speechify
 - **Role:** None
-- **Tech Stack:** JavaScript , Typescript , Svelte , Tailwind , Kotlin
+- **Tech Stack:** 
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://remoteok.com/remote-jobs/remote-svelte-developer-green-stuff-world-1093508
+- **Link:** https://remoteok.com/remote-jobs/remote-software-engineer-data-infrastructure-acquisition-speechify-1093699
 
 ---

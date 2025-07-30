@@ -12,3 +12,6 @@ wheels/
 *.pyc
 *.sqlite3
 chromedriver.log
+
+# Screenshots
+*.png
