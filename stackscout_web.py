@@ -221,7 +221,7 @@ def run_scraper(email, password):
             title_tag = job_card.find("div", attrs={"role": "heading"})
             link_tag = job_card.find("a", href=True)
             title = title_tag.get_text(strip=True) if title_tag else "N/A"
-            link = link_tag.get("href") if link_tag else driver.current_url
+            link = link_tag.get("href") if isinstance(link_tag, Tag) else driver.current_url
             results.append({
                 "Company": "Unknown (Google Jobs)",
                 "Role": title,
