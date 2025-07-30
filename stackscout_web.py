@@ -269,7 +269,7 @@ def run_scraper(email, password):
     try:
         results += scrape_indeed(driver)
     except Exception as e:
-        logger.error(f "❌ Indeed scraping failed: {e}")
+        logger.error(f"❌ Indeed scraping failed: {e}")
 
     try:
         results += scrape_arc_dev(driver)
