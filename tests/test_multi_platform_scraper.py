@@ -26,26 +26,62 @@ def test_scrape_linkedin_with_credentials(monkeypatch, capsys):
     monkeypatch.setenv("LINKEDIN_EMAIL", "test@example.com")
     monkeypatch.setenv("LINKEDIN_PASSWORD", "password123")
     import multi_platform_scraper as scraper
+    from unittest.mock import MagicMock
     # Reload environment variables in scraper module
     scraper.LINKEDIN_EMAIL = "test@example.com"
     scraper.LINKEDIN_PASSWORD = "password123"
     driver = MagicMock()
+    # Mock driver.get and driver.page_source for selenium
+    driver.get.return_value = None
+    driver.page_source = """
+    <ul class="jobs-search__results-list">
+        <li class="jobs-search-results__list-item">
+            <h3 class="base-search-card__title">Software Engineer</h3>
+            <h4 class="base-search-card__subtitle">Example Company</h4>
+            <span class="job-search-card__location">Remote</span>
+            <a href="https://linkedin.com/job1">Job Link</a>
+        </li>
+    </ul>
+    """
     result = scraper.scrape_linkedin(driver)
     captured = capsys.readouterr()
-    assert "Scraping LinkedIn placeholder... (not implemented)" in captured.out
+    assert len(result) == 1
+    assert result[0]['Company'] == "Example Company"
+    assert result[0]['Role'] == "Software Engineer"
+    assert result[0]['Type'] == "Remote"
+    assert result[0]['Link'] == "https://linkedin.com/job1"
     assert isinstance(result, list)
 
 def test_scrape_linkedin_without_credentials(monkeypatch, capsys):
     monkeypatch.delenv("LINKEDIN_EMAIL", raising=False)
     monkeypatch.delenv("LINKEDIN_PASSWORD", raising=False)
     import multi_platform_scraper as scraper
+    from unittest.mock import MagicMock
     scraper.LINKEDIN_EMAIL = None
     scraper.LINKEDIN_PASSWORD = None
     driver = MagicMock()
+    # Mock driver.get and driver.page_source for selenium
+    driver.get.return_value = None
+    driver.page_source = """
+    <ul class="jobs-search__results-list">
+        <li class="jobs-search-results__list-item">
+            <h3 class="base-search-card__title">Software Engineer</h3>
+            <h4 class="base-search-card__subtitle">Example Company</h4>
+            <span class="job-search-card__location">Remote</span>
+            <a href="https://linkedin.com/job1">Job Link</a>
+        </li>
+    </ul>
+    """
     result = scraper.scrape_linkedin(driver)
     captured = capsys.readouterr()
-    assert "Scraping LinkedIn placeholder... (not implemented)" in captured.out
-    assert result == []
+    assert len(result) == 1
+    assert result[0]['Company'] == "Example Company"
+    assert result[0]['Role'] == "Software Engineer"
+    assert result[0]['Type'] == "Remote"
+    assert result[0]['Link'] == "https://linkedin.com/job1"
+    assert isinstance(result, list)
+    # Remove the assertion that result should be empty because scraper now returns jobs
+    # assert result == []
 
 def test_scrape_remoteok_success(monkeypatch):
     class MockResponse:
@@ -126,7 +162,7 @@ def test_scrape_indeed_captcha_handling(monkeypatch):
 def test_scrape_arc_dev_placeholder(capsys):
     result = scraper.scrape_arc_dev(None)
     captured = capsys.readouterr()
-    assert "Scraping Arc.dev" in captured.out
+    assert "No Selenium driver available" in captured.out
     assert result == []
 
 def test_scrape_linkedin_placeholder_with_credentials(monkeypatch, capsys):
@@ -137,7 +173,7 @@ def test_scrape_linkedin_placeholder_with_credentials(monkeypatch, capsys):
     scraper.LINKEDIN_PASSWORD = "password123"
     result = scraper.scrape_linkedin(None)
     captured = capsys.readouterr()
-    assert "Scraping LinkedIn placeholder... (not implemented)" in captured.out
+    assert "No Selenium driver available" in captured.out
     assert isinstance(result, list)
 
 def test_scrape_linkedin_placeholder_without_credentials(monkeypatch, capsys):
@@ -147,5 +183,5 @@ def test_scrape_linkedin_placeholder_without_credentials(monkeypatch, capsys):
     scraper.LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
     result = scraper.scrape_linkedin(None)
     captured = capsys.readouterr()
-    assert "Scraping LinkedIn placeholder... (not implemented)" in captured.out
+    assert "No Selenium driver available" in captured.out
     assert result == []

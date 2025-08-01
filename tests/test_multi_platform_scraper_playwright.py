@@ -1,6 +1,9 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import multi_platform_scraper_playwright as scraper
 
 @pytest.mark.asyncio
