@@ -5,4 +5,5 @@ python-dotenv
 jinja2
 requests
 beautifulsoup4
-playwright 
+lxml
+playwright

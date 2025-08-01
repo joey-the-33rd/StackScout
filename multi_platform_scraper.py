@@ -8,81 +8,62 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium_stealth import stealth
 from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
+from bs4 import XMLParsedAsHTMLWarning
+import warnings
 import time
 import requests
 import random
 from dotenv import load_dotenv
 import os
 
-def get_driver():
-    options = Options()
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
+
+load_dotenv()
+
+LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
+LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
+
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.webdriver.firefox.webdriver import WebDriver as FirefoxDriver
+
+def get_firefox_driver(geckodriver_path=None):
+    options = FirefoxOptions()
     # Use headful mode (non-headless) to better simulate user behavior
-    # Comment out headless argument
-    # options.add_argument("--headless=new")  # Updated headless mode for newer Chrome versions
+    # options.add_argument("--headless")  # Uncomment to run headless
 
     # Randomize user agent
     ua = UserAgent()
     user_agent = ua.random
-    options.add_argument(f'user-agent={user_agent}')
-
-    # Additional options for stealth
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-
-    # Disable automation flags
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
+    options.set_preference("general.useragent.override", user_agent)
 
     try:
-        service = Service()  # Use default chromedriver from PATH or specify path here if needed
-        driver = webdriver.Chrome(service=service, options=options)
-
-        # Apply selenium-stealth
-        stealth(driver,
-                languages=["en-US", "en"],
-                vendor="Google Inc.",
-                platform="Win32",
-                webgl_vendor="Intel Inc.",
-                renderer="Intel Iris OpenGL Engine",
-                fix_hairline=True,
-                )
-
-        # Additional stealth: modify navigator.webdriver property
-        driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-            'source': '''
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                })
-            '''
-        })
-
-        driver.set_page_load_timeout(60)  # Increased page load timeout to 60 seconds
-    except WebDriverException as e:
-        print(f"Error initializing Chrome driver: {e}")
+        if geckodriver_path:
+            service = FirefoxService(executable_path=geckodriver_path)
+        else:
+            service = FirefoxService()  # Use default geckodriver from PATH or specify path here if needed
+        driver = FirefoxDriver(service=service, options=options)
+        driver.set_page_load_timeout(120)  # Increased page load timeout to 120 seconds
+    except Exception as e:
+        import traceback
+        print(f"Error initializing Firefox driver: {e}")
+        traceback.print_exc()
         driver = None
     return driver
 
 def scrape_google_jobs(driver):
     """
-    Attempts to scrape job listings from Google Jobs using a Selenium driver.
-    
-    Note:
-    - This function is currently a placeholder due to the limitations imposed by the dynamic nature of Google's job listings page and its complex structure.
-    - No job listings are returned by this scraper at this time.
-
-    Args:
-    - driver (selenium.webdriver.Chrome): Selenium WebDriver instance used to interact with web pages.
-
-    Returns:
-    - list: An empty list as no scraping is performed.
+    Placeholder for Google Jobs scraper.
     """
-
-    print("Google Jobs scraping is currently a placeholder due to dynamic content and page structure limitations.")
-    print("This scraper does not return job listings at this time.")
+    print("🕵️‍♂️ Google Jobs scraping is currently a placeholder.")
     return []
 
-import time
+def scrape_indeed(driver=None, proxies=None):
+    """
+    Placeholder for Indeed scraper.
+    """
+    print("🕵️‍♂️ Indeed scraping is currently a placeholder.")
+    return []
 
 def scrape_remoteok():
     """
@@ -113,7 +94,7 @@ def scrape_remoteok():
         try:
             res = requests.get(url, headers=headers, timeout=10)
             if res.status_code == 429:
-                print(f"Received 429 Too Many Requests, retrying after delay... (Attempt {attempt + 1}/{max_retries})")
+                print(f"❌ Received 429 Too Many Requests, retrying after delay... (Attempt {attempt + 1}/{max_retries})")
                 time.sleep(10 * (2 ** attempt))  # True exponential backoff
                 continue
             res.raise_for_status()
@@ -136,128 +117,311 @@ def scrape_remoteok():
                 })
             break  # Success, exit retry loop
         except requests.RequestException as e:
-            print(f"Error scraping Remote OK: {e}")
+            print(f"❌ Error scraping Remote OK: {e}")
             if attempt == max_retries - 1:
-                print("Max retries reached, skipping Remote OK scraping.")
+                print("❌ Max retries reached, skipping Remote OK scraping.")
     return jobs
 
-# Placeholder functions for platforms to be implemented
-import random
-
-def scrape_indeed(driver=None, proxies=None):
+def scrape_job_together():
     """
-    Scrapes the top 5 job listings from Indeed's remote developer jobs page using Selenium with stealth and session handling.
-
-    Args:
-    - driver (selenium.webdriver.Chrome): Selenium WebDriver instance used to interact with web pages.
-    - proxies: Ignored in this implementation.
-
-    Returns:
-    - list: A list of dictionaries containing job information with the following keys:
-        - Company
-        - Role
-        - Tech Stack (job summary)
-        - Type (location)
-        - Salary
-        - Contact Person (always "N/A")
-        - Email (always "N/A")
-        - Link
+    Scrapes the top 5 job listings from Job Together using requests and BeautifulSoup.
     """
-    print("Scraping Indeed jobs using Selenium with stealth...")
     jobs = []
-    if not driver:
-        print("No Selenium driver available, skipping Indeed scraping.")
-        return jobs
-
+    url = "https://jobtogether.com/jobs"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
     try:
-        url = "https://www.indeed.com/jobs?q=remote+developer&l="
-        driver.get(url)
-
-        # Check for CAPTCHA or login page
-        if "captcha" in driver.page_source.lower() or "verify" in driver.page_source.lower():
-            print("CAPTCHA or verification page detected. Attempting to wait for manual solve for up to 3 minutes...")
-            for i in range(18):
-                time.sleep(10)
-                driver.refresh()
-                if "captcha" not in driver.page_source.lower() and "verify" not in driver.page_source.lower():
-                    print("CAPTCHA solved, continuing scraping.")
-                    break
-            else:
-                print("CAPTCHA not solved within timeout, skipping Indeed scraping.")
-                return []
-        wait = WebDriverWait(driver, 30)
-        try:
-            wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.tapItem")))
-        except Exception as e:
-            print(f"Timeout waiting for job cards: {e}")
-            print("Page source snippet for debugging:")
-            print(driver.page_source[:1000])  # Print first 1000 chars of page source for debugging
-            return []
-
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        job_cards = soup.find_all("a", class_="tapItem")[:5]
-
-        for job_card in job_cards:
-            title_elem = job_card.find("h2", class_="jobTitle")
-            company_elem = job_card.find("span", class_="companyName")
-            location_elem = job_card.find("div", class_="companyLocation")
-            salary_elem = job_card.find("div", class_="salary-snippet")
-            summary_elem = job_card.find("div", class_="job-snippet")
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 404:
+            print("Job Together URL returned 404 Not Found. Skipping scraping Job Together.")
+            return jobs
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        job_cards = soup.find_all("div", class_="job-card")[:5]
+        for job in job_cards:
+            title_elem = job.find("h2", class_="job-title")
+            company_elem = job.find("div", class_="company-name")
+            location_elem = job.find("div", class_="job-location")
+            link_elem = job.find("a", href=True)
 
             title = title_elem.text.strip() if title_elem else "N/A"
             company = company_elem.text.strip() if company_elem else "N/A"
             location = location_elem.text.strip() if location_elem else "N/A"
-            salary = salary_elem.text.strip() if salary_elem else "N/A"
-            summary = summary_elem.text.strip().replace("\n", " ") if summary_elem else "N/A"
-
-            job_link = "https://www.indeed.com" + job_card.get("href", "")
+            link = link_elem['href'] if link_elem else "N/A"
 
             jobs.append({
                 "Company": company,
                 "Role": title,
-                "Tech Stack": summary,
+                "Tech Stack": "N/A",
                 "Type": location,
-                "Salary": salary,
+                "Salary": "N/A",
                 "Contact Person": "N/A",
                 "Email": "N/A",
-                "Link": job_link
+                "Link": link
             })
     except Exception as e:
-        import traceback
-        print(f"Error scraping Indeed: {e}")
-        traceback.print_exc()
-
+        print(f"Error scraping Job Together: {e}")
     return jobs
 
-def scrape_weworkremotely(driver):
-    print("Scraping We Work Remotely placeholder... (not implemented)")
-    return []
+def scrape_ziprecruiter(driver=None):
+    """
+    Scrapes the top 5 job listings from ZipRecruiter using requests and BeautifulSoup.
+    """
+    jobs = []
+    url = "https://www.ziprecruiter.com/candidate/search?search=remote+developer"
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://www.google.com/",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+        "TE": "Trailers"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        job_cards = soup.find_all("article", class_="job_result")[:5]
+        for job in job_cards:
+            title_elem = job.find("a", class_="job_link")
+            company_elem = job.find("a", class_="t_org_link")
+            location_elem = job.find("span", class_="job_result_location")
+            link_elem = title_elem
 
-def scrape_ziprecruiter(driver):
-    print("Scraping ZipRecruiter placeholder... (not implemented)")
-    return []
+            title = title_elem.text.strip() if title_elem else "N/A"
+            company = company_elem.text.strip() if company_elem else "N/A"
+            location = location_elem.text.strip() if location_elem else "N/A"
+            link = "https://www.ziprecruiter.com" + link_elem.get('href', '') if link_elem else "N/A"
 
-def scrape_arc_dev(driver):
-    print("Scraping Arc.dev placeholder... (not implemented)")
-    return []
+            jobs.append({
+                "Company": company,
+                "Role": title,
+                "Tech Stack": "N/A",
+                "Type": location,
+                "Salary": "N/A",
+                "Contact Person": "N/A",
+                "Email": "N/A",
+                "Link": link
+            })
+    except Exception as e:
+        print(f"Error scraping ZipRecruiter: {e}")
+    return jobs
 
-def scrape_linkedin(driver):
-    print("Scraping LinkedIn placeholder... (not implemented)")
-    return []
+def scrape_weworkremotely(driver=None):
+    """
+    Scrapes the top 5 job listings from We Work Remotely using requests and BeautifulSoup.
+    """
+    jobs = []
+    url = "https://weworkremotely.com/categories/remote-programming-jobs"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        job_sections = soup.find_all("section", class_="jobs")[:1]
+        for section in job_sections:
+            job_list = section.find_all("li", class_="feature")[:5]
+            for job in job_list:
+                title_elem = job.find("span", class_="title")
+                company_elem = job.find("span", class_="company")
+                link_elem = job.find("a", href=True)
+
+                title = title_elem.text.strip() if title_elem else "N/A"
+                company = company_elem.text.strip() if company_elem else "N/A"
+                link = "https://weworkremotely.com" + link_elem['href'] if link_elem else "N/A"
+
+                jobs.append({
+                    "Company": company,
+                    "Role": title,
+                    "Tech Stack": "N/A",
+                    "Type": "Remote",
+                    "Salary": "N/A",
+                    "Contact Person": "N/A",
+                    "Email": "N/A",
+                    "Link": link
+                })
+    except Exception as e:
+        print(f"Error scraping We Work Remotely: {e}")
+    return jobs
+
+def scrape_turing():
+    """
+    Scrapes the top 5 job listings from Turing using requests and BeautifulSoup.
+    """
+    jobs = []
+    url = "https://www.turing.com/jobs"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        job_cards = soup.find_all("div", class_="job-card")[:5]
+        for job in job_cards:
+            title_elem = job.find("h3", class_="job-title")
+            company_elem = job.find("div", class_="company-name")
+            location_elem = job.find("div", class_="job-location")
+            link_elem = job.find("a", href=True)
+
+            title = title_elem.text.strip() if title_elem else "N/A"
+            company = company_elem.text.strip() if company_elem else "N/A"
+            location = location_elem.text.strip() if location_elem else "N/A"
+            link = link_elem['href'] if link_elem else "N/A"
+
+            jobs.append({
+                "Company": company,
+                "Role": title,
+                "Tech Stack": "N/A",
+                "Type": location,
+                "Salary": "N/A",
+                "Contact Person": "N/A",
+                "Email": "N/A",
+                "Link": link
+            })
+    except Exception as e:
+        print(f"Error scraping Turing: {e}")
+    return jobs
+
+def scrape_no_desk():
+    """
+    Scrapes the top 5 job listings from No Desk using requests and BeautifulSoup.
+    """
+    jobs = []
+    url = "https://nodesk.co/remote-jobs"
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        job_cards = soup.find_all("div", class_="job")[:5]
+        for job in job_cards:
+            title_elem = job.find("h3", class_="job-title")
+            company_elem = job.find("div", class_="company")
+            location_elem = job.find("div", class_="location")
+            link_elem = job.find("a", href=True)
+
+            title = title_elem.text.strip() if title_elem else "N/A"
+            company = company_elem.text.strip() if company_elem else "N/A"
+            location = location_elem.text.strip() if location_elem else "N/A"
+            link = link_elem['href'] if link_elem else "N/A"
+
+            jobs.append({
+                "Company": company,
+                "Role": title,
+                "Tech Stack": "N/A",
+                "Type": location,
+                "Salary": "N/A",
+                "Contact Person": "N/A",
+                "Email": "N/A",
+                "Link": link
+            })
+    except Exception as e:
+        print(f"Error scraping No Desk: {e}")
+    return jobs
+
+def scrape_arc_dev(driver=None):
+    """
+    Scrapes the top 5 job listings from Arc.dev using Selenium.
+    """
+    jobs = []
+    if not driver:
+        print("No Selenium driver available, skipping Arc.dev scraping.")
+        return jobs
+    try:
+        url = "https://arc.dev/jobs"
+        driver.get(url)
+        wait = WebDriverWait(driver, 30)
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "a.job-card")))
+        soup = BeautifulSoup(driver.page_source, "lxml")
+        job_cards = soup.find_all("a", class_="job-card")[:5]
+        for job in job_cards:
+            title_elem = job.find("h3", class_="job-title")
+            company_elem = job.find("div", class_="company-name")
+            location_elem = job.find("div", class_="job-location")
+            link_elem = job
+
+            title = title_elem.text.strip() if title_elem else "N/A"
+            company = company_elem.text.strip() if company_elem else "N/A"
+            location = location_elem.text.strip() if location_elem else "N/A"
+            link = link_elem['href'] if link_elem else "N/A"
+
+            jobs.append({
+                "Company": company,
+                "Role": title,
+                "Tech Stack": "N/A",
+                "Type": location,
+                "Salary": "N/A",
+                "Contact Person": "N/A",
+                "Email": "N/A",
+                "Link": link
+            })
+    except Exception as e:
+        print(f"Error scraping Arc.dev: {e}")
+    return jobs
+
+def scrape_linkedin(driver=None):
+    """
+    Scrapes the top 5 job listings from LinkedIn using Selenium.
+    """
+    jobs = []
+    if not driver:
+        print("No Selenium driver available, skipping LinkedIn scraping.")
+        return jobs
+    try:
+        url = "https://www.linkedin.com/jobs/search?keywords=remote%20developer"
+        driver.get(url)
+        wait = WebDriverWait(driver, 30)
+        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.jobs-search__results-list li")))
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        job_cards = soup.find_all("li", class_="jobs-search-results__list-item")[:5]
+        for job in job_cards:
+            title_elem = job.find("h3", class_="base-search-card__title")
+            company_elem = job.find("h4", class_="base-search-card__subtitle")
+            location_elem = job.find("span", class_="job-search-card__location")
+            link_elem = job.find("a", href=True)
+
+            title = title_elem.text.strip() if title_elem else "N/A"
+            company = company_elem.text.strip() if company_elem else "N/A"
+            location = location_elem.text.strip() if location_elem else "N/A"
+            link = link_elem['href'] if link_elem else "N/A"
+
+            jobs.append({
+                "Company": company,
+                "Role": title,
+                "Tech Stack": "N/A",
+                "Type": location,
+                "Salary": "N/A",
+                "Contact Person": "N/A",
+                "Email": "N/A",
+                "Link": link
+            })
+    except Exception as e:
+        print(f"Error scraping LinkedIn: {e}")
+    return jobs
 
 def main():
-    driver = get_driver()
+    # Use Firefox driver instead of Chrome driver
+    driver = get_firefox_driver()
     results = []
 
-    print("Scraping Google Jobs...")
+    # Google and Indeed replaced with placeholders
     results += scrape_google_jobs(driver)
-
-    print("Scraping Remote OK...")
-    results += scrape_remoteok()
-
     results += scrape_indeed(driver)
-    results += scrape_weworkremotely(driver)
+
+    # Add scrapers for requested platforms
+    results += scrape_job_together()
     results += scrape_ziprecruiter(driver)
+    results += scrape_remoteok()
+    results += scrape_weworkremotely(driver)
+    results += scrape_turing()
+    results += scrape_no_desk()
     results += scrape_arc_dev(driver)
     results += scrape_linkedin(driver)
 
