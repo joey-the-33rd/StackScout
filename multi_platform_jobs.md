@@ -48,7 +48,7 @@
 - **Link:** https://remoteok.com/remote-jobs/remote-software-engineer-sticker-mule-1093738
 
 ---
-- **Company:** N/A
+- **Company:** Jobgether
 - **Role:** Project Optimization Coordinator 100% Remote
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
@@ -58,7 +58,7 @@
 - **Link:** https://jobgether.com/offer/688dbef3b1e5f768c7b46013-project-optimization-coordinator-100-remote
 
 ---
-- **Company:** N/A
+- **Company:** Jobgether
 - **Role:** Project Coordinator
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
@@ -68,7 +68,7 @@
 - **Link:** https://jobgether.com/offer/688da2ddb1e5f768c7b3fbec-project-coordinator
 
 ---
-- **Company:** N/A
+- **Company:** Jobgether
 - **Role:** Projektleiter Controlling & Finanzen
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
@@ -78,7 +78,7 @@
 - **Link:** https://jobgether.com/offer/688d869bb1e5f768c7b3b83b-projektleiter-controlling-finanzen
 
 ---
-- **Company:** N/A
+- **Company:** Jobgether
 - **Role:** Project Manager
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
@@ -88,7 +88,7 @@
 - **Link:** https://jobgether.com/offer/688da2c1b1e5f768c7b3f9e8-project-manager
 
 ---
-- **Company:** N/A
+- **Company:** Jobgether
 - **Role:** Career Opportunities: EMEA Remote Project Manager Engineering (137199)
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
@@ -96,55 +96,5 @@
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
 - **Link:** https://jobgether.com/offer/688ddadfb1e5f768c7b4e805-career-opportunities-emea-remote-project-manager-engineering-137199
-
----
-- **Company:** N/A
-- **Role:** N/A
-- **Tech Stack:** Python, Remote
-- **Type:** Remote
-- **Salary:** N/A
-- **Contact Person:** N/A
-- **Email/Contact:** N/A
-- **Link:** https://nodesk.co/remote-jobs/customer-support/
-
----
-- **Company:** N/A
-- **Role:** N/A
-- **Tech Stack:** Python, Remote
-- **Type:** Remote
-- **Salary:** N/A
-- **Contact Person:** N/A
-- **Email/Contact:** N/A
-- **Link:** https://nodesk.co/remote-jobs/design/
-
----
-- **Company:** N/A
-- **Role:** N/A
-- **Tech Stack:** Python, Remote
-- **Type:** Remote
-- **Salary:** N/A
-- **Contact Person:** N/A
-- **Email/Contact:** N/A
-- **Link:** https://nodesk.co/remote-jobs/engineering/
-
----
-- **Company:** N/A
-- **Role:** N/A
-- **Tech Stack:** Python, Remote
-- **Type:** Remote
-- **Salary:** N/A
-- **Contact Person:** N/A
-- **Email/Contact:** N/A
-- **Link:** https://nodesk.co/remote-jobs/entry-level/
-
----
-- **Company:** N/A
-- **Role:** N/A
-- **Tech Stack:** Python, Remote
-- **Type:** Remote
-- **Salary:** N/A
-- **Contact Person:** N/A
-- **Email/Contact:** N/A
-- **Link:** https://nodesk.co/remote-jobs/marketing/
 
 ---
