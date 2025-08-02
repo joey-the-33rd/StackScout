@@ -8,6 +8,16 @@
 - **Link:** https://remoteok.com/remote-jobs/remote-senior-python-backend-engineer-orga-ai-1093458
 
 ---
+- **Company:** Green Stuff World
+- **Role:** Svelte Developer
+- **Tech Stack:** JavaScript , Typescript , Svelte , Tailwind , Kotlin
+- **Type:** Remote
+- **Salary:** N/A
+- **Contact Person:** N/A
+- **Email/Contact:** N/A
+- **Link:** https://remoteok.com/remote-jobs/remote-svelte-developer-green-stuff-world-1093508
+
+---
 - **Company:** CEF.Ai
 - **Role:** Principal Software Engineer
 - **Tech Stack:** Other
@@ -38,64 +48,54 @@
 - **Link:** https://remoteok.com/remote-jobs/remote-software-engineer-sticker-mule-1093738
 
 ---
-- **Company:** MailerLite
-- **Role:** Web Developer
-- **Tech Stack:** Front End
-- **Type:** Remote
-- **Salary:** N/A
-- **Contact Person:** N/A
-- **Email/Contact:** N/A
-- **Link:** https://remoteok.com/remote-jobs/remote-web-developer-mailerlite-1093712
-
----
 - **Company:** N/A
-- **Role:** Karrierechancen: Junior Projektmanager (mwd) Schwerpunkt Batterie (12361)
+- **Role:** Project Optimization Coordinator 100% Remote
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://jobgether.com/offer/688b37f08fe3cbf7e97c4655-karrierechancen-junior-projektmanager-mwd-schwerpunkt-batterie-12361
+- **Link:** https://jobgether.com/offer/688dbef3b1e5f768c7b46013-project-optimization-coordinator-100-remote
 
 ---
 - **Company:** N/A
-- **Role:** EMEA CCaaS Project Manager
+- **Role:** Project Coordinator
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://jobgether.com/offer/688bc4a28fe3cbf7e97f59e8-emea-ccaas-project-manager
+- **Link:** https://jobgether.com/offer/688da2ddb1e5f768c7b3fbec-project-coordinator
 
 ---
 - **Company:** N/A
-- **Role:** Principal Program Manager
+- **Role:** Projektleiter Controlling & Finanzen
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://jobgether.com/offer/688b54188fe3cbf7e97c79bb-principal-program-manager
+- **Link:** https://jobgether.com/offer/688d869bb1e5f768c7b3b83b-projektleiter-controlling-finanzen
 
 ---
 - **Company:** N/A
-- **Role:** Projekt Manager im Industrie Auktionsbusiness (mwd) Germany
+- **Role:** Project Manager
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://jobgether.com/offer/688a02a922e41e063a1fd67b-projekt-manager-im-industrie-auktionsbusiness-mwd-germany
+- **Link:** https://jobgether.com/offer/688da2c1b1e5f768c7b3f9e8-project-manager
 
 ---
 - **Company:** N/A
-- **Role:** Senior Project Manager, Contact Center
+- **Role:** Career Opportunities: EMEA Remote Project Manager Engineering (137199)
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
 - **Salary:** N/A
 - **Contact Person:** N/A
 - **Email/Contact:** N/A
-- **Link:** https://jobgether.com/offer/688be0cf8fe3cbf7e9802130-senior-project-manager-contact-center
+- **Link:** https://jobgether.com/offer/688ddadfb1e5f768c7b4e805-career-opportunities-emea-remote-project-manager-engineering-137199
 
 ---
 - **Company:** N/A
@@ -138,7 +138,7 @@
 - **Link:** https://nodesk.co/remote-jobs/entry-level/
 
 ---
-- **Company:** N/
+- **Company:** N/A
 - **Role:** N/A
 - **Tech Stack:** Python, Remote
 - **Type:** Remote
