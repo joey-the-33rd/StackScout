@@ -164,129 +164,6 @@ def scrape_job_together():
         print(f"Error scraping Job Together: {e}")
     return jobs
 
-def scrape_ziprecruiter(driver=None):
-    """
-    Scrapes the top 5 job listings from ZipRecruiter using requests and BeautifulSoup.
-    """
-    jobs = []
-    url = "https://www.ziprecruiter.com/candidate/search?search=remote+developer"
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Referer": "https://www.google.com/",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "TE": "Trailers"
-    }
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
-        job_cards = soup.find_all("article", class_="job_result")[:5]
-        for job in job_cards:
-            title_elem = job.find("a", class_="job_link")
-            company_elem = job.find("a", class_="t_org_link")
-            location_elem = job.find("span", class_="job_result_location")
-            link_elem = title_elem
-
-            title = title_elem.text.strip() if title_elem else "N/A"
-            company = company_elem.text.strip() if company_elem else "N/A"
-            location = location_elem.text.strip() if location_elem else "N/A"
-            link = "https://www.ziprecruiter.com" + link_elem.get('href', '') if link_elem else "N/A"
-
-            jobs.append({
-                "Company": company,
-                "Role": title,
-                "Tech Stack": "N/A",
-                "Type": location,
-                "Salary": "N/A",
-                "Contact Person": "N/A",
-                "Email": "N/A",
-                "Link": link
-            })
-    except Exception as e:
-        print(f"Error scraping ZipRecruiter: {e}")
-    return jobs
-
-def scrape_weworkremotely(driver=None):
-    """
-    Scrapes the top 5 job listings from We Work Remotely using requests and BeautifulSoup.
-    """
-    jobs = []
-    url = "https://weworkremotely.com/categories/remote-programming-jobs"
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
-        job_sections = soup.find_all("section", class_="jobs")[:1]
-        for section in job_sections:
-            job_list = section.find_all("li", class_="feature")[:5]
-            for job in job_list:
-                title_elem = job.find("span", class_="title")
-                company_elem = job.find("span", class_="company")
-                link_elem = job.find("a", href=True)
-
-                title = title_elem.text.strip() if title_elem else "N/A"
-                company = company_elem.text.strip() if company_elem else "N/A"
-                link = "https://weworkremotely.com" + link_elem['href'] if link_elem else "N/A"
-
-                jobs.append({
-                    "Company": company,
-                    "Role": title,
-                    "Tech Stack": "N/A",
-                    "Type": "Remote",
-                    "Salary": "N/A",
-                    "Contact Person": "N/A",
-                    "Email": "N/A",
-                    "Link": link
-                })
-    except Exception as e:
-        print(f"Error scraping We Work Remotely: {e}")
-    return jobs
-
-def scrape_turing():
-    """
-    Scrapes the top 5 job listings from Turing using requests and BeautifulSoup.
-    """
-    jobs = []
-    url = "https://www.turing.com/jobs"
-    headers = {
-        "User-Agent": "Mozilla/5.0"
-    }
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
-        job_cards = soup.find_all("div", class_="job-card")[:5]
-        for job in job_cards:
-            title_elem = job.find("h3", class_="job-title")
-            company_elem = job.find("div", class_="company-name")
-            location_elem = job.find("div", class_="job-location")
-            link_elem = job.find("a", href=True)
-
-            title = title_elem.text.strip() if title_elem else "N/A"
-            company = company_elem.text.strip() if company_elem else "N/A"
-            location = location_elem.text.strip() if location_elem else "N/A"
-            link = link_elem['href'] if link_elem else "N/A"
-
-            jobs.append({
-                "Company": company,
-                "Role": title,
-                "Tech Stack": "N/A",
-                "Type": location,
-                "Salary": "N/A",
-                "Contact Person": "N/A",
-                "Email": "N/A",
-                "Link": link
-            })
-    except Exception as e:
-        print(f"Error scraping Turing: {e}")
-    return jobs
-
 def scrape_no_desk():
     """
     Scrapes the top 5 job listings from No Desk using requests and BeautifulSoup.
@@ -366,46 +243,6 @@ def scrape_arc_dev(driver=None):
         print(f"Error scraping Arc.dev: {e}")
     return jobs
 
-def scrape_linkedin(driver=None):
-    """
-    Scrapes the top 5 job listings from LinkedIn using Selenium.
-    """
-    jobs = []
-    if not driver:
-        print("No Selenium driver available, skipping LinkedIn scraping.")
-        return jobs
-    try:
-        url = "https://www.linkedin.com/jobs/search?keywords=remote%20developer"
-        driver.get(url)
-        wait = WebDriverWait(driver, 30)
-        wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "ul.jobs-search__results-list li")))
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        job_cards = soup.find_all("li", class_="jobs-search-results__list-item")[:5]
-        for job in job_cards:
-            title_elem = job.find("h3", class_="base-search-card__title")
-            company_elem = job.find("h4", class_="base-search-card__subtitle")
-            location_elem = job.find("span", class_="job-search-card__location")
-            link_elem = job.find("a", href=True)
-
-            title = title_elem.text.strip() if title_elem else "N/A"
-            company = company_elem.text.strip() if company_elem else "N/A"
-            location = location_elem.text.strip() if location_elem else "N/A"
-            link = link_elem['href'] if link_elem else "N/A"
-
-            jobs.append({
-                "Company": company,
-                "Role": title,
-                "Tech Stack": "N/A",
-                "Type": location,
-                "Salary": "N/A",
-                "Contact Person": "N/A",
-                "Email": "N/A",
-                "Link": link
-            })
-    except Exception as e:
-        print(f"Error scraping LinkedIn: {e}")
-    return jobs
-
 def main():
     # Use Firefox driver instead of Chrome driver
     driver = get_firefox_driver()
@@ -417,13 +254,9 @@ def main():
 
     # Add scrapers for requested platforms
     results += scrape_job_together()
-    results += scrape_ziprecruiter(driver)
     results += scrape_remoteok()
-    results += scrape_weworkremotely(driver)
-    results += scrape_turing()
     results += scrape_no_desk()
     results += scrape_arc_dev(driver)
-    results += scrape_linkedin(driver)
 
     if driver:
         driver.quit()
