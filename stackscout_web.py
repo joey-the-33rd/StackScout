@@ -94,11 +94,20 @@ def read_form(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/run", response_class=HTMLResponse)
-async def run_job_search(request: Request, keywords: str = None, location: str = None, job_type: str = None):
+async def run_job_search(request: Request):
     results = []
     try:
+        # Extract form data from the request
+        form_data = await request.form()
+        keywords = str(form_data.get("keywords", "python")) if form_data.get("keywords") else "python"
+        location = str(form_data.get("location", "")) if form_data.get("location") else ""
+        job_type = str(form_data.get("job_type", "")) if form_data.get("job_type") else ""
+        
+        # Log the extracted form data for debugging
+        logger.info(f"Form data extracted - Keywords: {keywords}, Location: {location}, Job Type: {job_type}")
+        
         # Pass the keywords to the scraper
-        results = await run_scraper_async(keywords or "python")
+        results = await run_scraper_async(keywords)
         if not results:
             logger.warning("⚠️ No jobs found during scraping.")
     except Exception as e:
