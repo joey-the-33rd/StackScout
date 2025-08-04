@@ -7,6 +7,14 @@ import os
 from dotenv import load_dotenv
 from urllib.parse import urljoin
 
+from scraping_utils import (
+    safe_get_text,
+    safe_get_attribute,
+    extract_job_field,
+    safe_find_element,
+    extract_tags
+)
+
 load_dotenv()
 
 LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
@@ -22,8 +30,6 @@ async def get_page_content(url, context):
 import logging
 
 logger = logging.getLogger("stackscout_web")
-
-from typing import List, Union
 
 async def scrape_remoteok(context, keywords: str = "python") -> List[dict]:
     url = f"https://remoteok.com/remote-dev-jobs?search={keywords}"
@@ -358,21 +364,15 @@ async def scrape_arkdev(context, keywords: str = "python") -> List[dict]:
         # Check if we're on the error page
         error_title = soup.find("h1")
         if error_title:
-            error_text = ""
-            if hasattr(error_title, 'get_text'):
-                error_text = error_title.get_text()
+            error_text = safe_get_text(error_title, "")
             if "Oops" in error_text:
                 logger.warning("ark.dev returned an error page. Trying to find careers page.")
                 # Try to find a careers link on the main page
                 careers_links = soup.find_all("a")
                 for link in careers_links:
-                    link_text = ""
-                    if link and hasattr(link, 'get_text'):
-                        link_text = link.get_text()
+                    link_text = safe_get_text(link, "")
                     if "Career" in link_text or "Jobs" in link_text:
-                        href = ""
-                        if link and hasattr(link, 'get'):
-                            href = link.get("href", "")
+                        href = safe_get_attribute(link, "href", "")
                         logger.info(f"Found careers link: {href}")
                         # We would need to navigate to this link, but for now let's return empty
                         return []
@@ -403,51 +403,33 @@ async def scrape_arkdev(context, keywords: str = "python") -> List[dict]:
         for job in job_cards:
             if isinstance(job, Tag):
                 # Extract title
-                title = None
-                title_selectors = [
+                title = extract_job_field(job, [
                     "h3.job-title", "h2.job-title", "h3", "h2", 
                     ".job-title", "[data-job-title]", "h1"
-                ]
-                for selector in title_selectors:
-                    title_elem = job.select_one(selector)
-                    if title_elem:
-                        if hasattr(title_elem, 'get_text'):
-                            title = title_elem.get_text(strip=True)
-                        break
+                ])
                 
                 # Extract company
-                company = None
-                company_selectors = [
+                company = extract_job_field(job, [
                     "div.company-name", ".company", "[data-company]", 
                     "span.company", "div.employer"
-                ]
-                for selector in company_selectors:
-                    company_elem = job.select_one(selector)
-                    if company_elem:
-                        if hasattr(company_elem, 'get_text'):
-                            company = company_elem.get_text(strip=True)
-                        break
+                ])
                 
                 # Extract link
                 link = "N/A"
-                link_tag = job.find("a", href=True)
+                link_tag = safe_find_element(job, ["a[href]"])
                 if not link_tag:
                     # If job element itself is a link
-                    if job.name == "a" and hasattr(job, 'get') and job.get("href"):
+                    if job.name == "a":
                         link_tag = job
-                    # Or look for any link in the job element
-                    else:
-                        link_tag = job.find("a")
                 
-                if link_tag and hasattr(link_tag, 'get') and link_tag.get("href"):
-                    href = link_tag.get("href")
-                    if isinstance(href, str):
-                        if href.startswith("http"):
-                            link = href
-                        elif href.startswith("/"):
-                            link = "https://ark.dev" + href
-                        else:
-                            link = "https://ark.dev/" + href
+                href = safe_get_attribute(link_tag, "href", None)
+                if href:
+                    if href.startswith("http"):
+                        link = href
+                    elif href.startswith("/"):
+                        link = "https://ark.dev" + href
+                    else:
+                        link = "https://ark.dev/" + href
                 
                 jobs.append({
                     "Company": company or "N/A",
