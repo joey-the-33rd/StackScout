@@ -7,6 +7,14 @@ import os
 from dotenv import load_dotenv
 from urllib.parse import urljoin
 
+from scraping_utils import (
+    safe_get_text,
+    safe_get_attribute,
+    extract_job_field,
+    safe_find_element,
+    extract_tags
+)
+
 load_dotenv()
 
 LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
@@ -23,8 +31,6 @@ import logging
 
 logger = logging.getLogger("stackscout_web")
 
-from typing import List, Union
-
 async def scrape_remoteok(context, keywords: str = "python") -> List[dict]:
     url = f"https://remoteok.com/remote-dev-jobs?search={keywords}"
     try:
@@ -36,17 +42,33 @@ async def scrape_remoteok(context, keywords: str = "python") -> List[dict]:
             logger.warning("No jobs found on remoteok.com with current selector.")
         for job in job_list:
             if isinstance(job, Tag):
-                title = job.get("data-position")
+                title = None
+                if hasattr(job, 'get'):
+                    title = job.get("data-position")
                 if not title:
                     title_tag = job.find("h2") or job.find("h3")
-                    title = title_tag.get_text(strip=True) if title_tag else "N/A"
-                company = job.get("data-company")
+                    if title_tag and hasattr(title_tag, 'get_text'):
+                        title = title_tag.get_text(strip=True)
+                    else:
+                        title = "N/A"
+                company = None
+                if hasattr(job, 'get'):
+                    company = job.get("data-company")
                 if not company:
                     company_tag = job.find("h3", class_="company") or job.find("div", class_="company")
-                    company = company_tag.get_text(strip=True) if company_tag else "N/A"
-                data_href = job.get("data-href", "")
+                    if company_tag and hasattr(company_tag, 'get_text'):
+                        company = company_tag.get_text(strip=True)
+                    else:
+                        company = "N/A"
+                data_href = ""
+                if hasattr(job, 'get'):
+                    data_href = job.get("data-href", "")
                 link = "https://remoteok.com" + (str(data_href) if data_href else "")
-                tags = [t.text for t in job.find_all("div", class_="tag")]
+                tags = []
+                tag_elements = job.find_all("div", class_="tag")
+                for t in tag_elements:
+                    if hasattr(t, 'text'):
+                        tags.append(t.text)
                 # Add keywords to tech stack if not already present
                 tech_stack_tags = [tag for tag in tags]
                 if keywords and keywords not in ", ".join(tech_stack_tags).lower():
@@ -83,12 +105,20 @@ async def scrape_jobgether(context, keywords: str = "python") -> List[Dict[str, 
             logger.warning("No job elements found with 'div.new-opportunity' selector on JobGether")
         for job_element in job_elements[:5]:  # Limit to first 5 results
             title_element = await job_element.query_selector("h2, h3")
-            title = await title_element.inner_text() if title_element else "N/A"
+            title = "N/A"
+            if title_element:
+                title = await title_element.inner_text()
             company_element = await job_element.query_selector("span.company-name, div.company")
-            company = await company_element.inner_text() if company_element else "N/A"
+            company = "N/A"
+            if company_element:
+                company = await company_element.inner_text()
             link_element = await job_element.query_selector("a[href]")
-            href = await link_element.get_attribute("href") if link_element else ""
-            full_link = urljoin(base_url, href) if href else "N/A"
+            href = ""
+            if link_element:
+                href = await link_element.get_attribute("href")
+            full_link = "N/A"
+            if href:
+                full_link = urljoin(base_url, href)
             jobs.append({
                 "Company": company,
                 "Role": title,
@@ -112,18 +142,25 @@ def extract_text(element: Tag, tag_names: List[str], class_keywords: List[str]) 
         for keyword in class_keywords:
             # Try exact class match
             found = element.find(tag, class_=keyword)
-            if found:
+            if found and hasattr(found, 'get_text'):
                 return found.get_text(strip=True)
             
             # Try partial class match
-            found = element.find(tag, class_=lambda x: x and keyword in x.lower())
-            if found:
+            def class_contains_keyword(x):
+                if x is None:
+                    return False
+                if isinstance(x, str):
+                    return keyword.lower() in x.lower()
+                return False
+            
+            found = element.find(tag, class_=class_contains_keyword)
+            if found and hasattr(found, 'get_text'):
                 return found.get_text(strip=True)
     
     # Fallback to any matching tag
     for tag in tag_names:
         found = element.find(tag)
-        if found:
+        if found and hasattr(found, 'get_text'):
             return found.get_text(strip=True)
     
     return ""
@@ -189,13 +226,18 @@ async def scrape_nodesk(context, keywords: str = "python") -> List[dict]:
                 for selector in title_selectors:
                     title_elem = job.select_one(selector)
                     if title_elem:
-                        title = title_elem.get_text(strip=True)
-                        if title:
-                            break
+                        if hasattr(title_elem, 'get_text'):
+                            title = title_elem.get_text(strip=True)
+                            if title:
+                                break
                 
                 # If still no title, try getting text from the job element itself
                 if title == "N/A":
-                    title = job.get_text(strip=True)[:100]  # Limit to 100 chars
+                    if hasattr(job, 'get_text'):
+                        title_text = job.get_text(strip=True)
+                        title = title_text[:100] if title_text else "N/A"  # Limit to 100 chars
+                    else:
+                        title = "N/A"
                     if not title:
                         title = "N/A"
                 
@@ -210,10 +252,11 @@ async def scrape_nodesk(context, keywords: str = "python") -> List[dict]:
                 for selector in company_selectors:
                     company_elem = job.select_one(selector)
                     if company_elem:
-                        company_text = company_elem.get_text(strip=True)
-                        if company_text and company_text != title:
-                            company = company_text
-                            break
+                        if hasattr(company_elem, 'get_text'):
+                            company_text = company_elem.get_text(strip=True)
+                            if company_text and company_text != title:
+                                company = company_text
+                                break
                 
                 # Extract link
                 link = "N/A"
@@ -223,14 +266,15 @@ async def scrape_nodesk(context, keywords: str = "python") -> List[dict]:
                 
                 for selector in link_selectors:
                     link_elem = job.select_one(selector)
-                    if link_elem and link_elem.get("href"):
+                    if link_elem and hasattr(link_elem, 'get') and link_elem.get("href"):
                         href = link_elem["href"]
-                        if href.startswith("http"):
-                            link = href
-                        elif href.startswith("/"):
-                            link = "https://nodesk.co" + href
-                        else:
-                            link = "https://nodesk.co/" + href
+                        if isinstance(href, str):
+                            if href.startswith("http"):
+                                link = href
+                            elif href.startswith("/"):
+                                link = "https://nodesk.co" + href
+                            else:
+                                link = "https://nodesk.co/" + href
                         break
                 
                 # Extract tech stack/tags
@@ -247,9 +291,10 @@ async def scrape_nodesk(context, keywords: str = "python") -> List[dict]:
                         # Extract text from all tag elements
                         tags = []
                         for tag_elem in tag_elements:
-                            tag_text = tag_elem.get_text(strip=True)
-                            if tag_text:
-                                tags.append(tag_text)
+                            if hasattr(tag_elem, 'get_text'):
+                                tag_text = tag_elem.get_text(strip=True)
+                                if tag_text:
+                                    tags.append(tag_text)
                         if tags:
                             tech_stack = ", ".join(tags)
                             break
@@ -257,7 +302,9 @@ async def scrape_nodesk(context, keywords: str = "python") -> List[dict]:
                 # If no tags found, try to extract from job description or other text
                 if tech_stack == keywords:
                     # Look for common tech terms in the job element text
-                    job_text = job.get_text(strip=True).lower()
+                    job_text = ""
+                    if hasattr(job, 'get_text'):
+                        job_text = job.get_text(strip=True).lower()
                     common_tech_terms = [
                         "python", "javascript", "react", "node", "java", "c++", 
                         "c#", "ruby", "php", "swift", "kotlin", "go", "rust",
@@ -300,18 +347,35 @@ from bs4.element import Tag
 async def scrape_arkdev(context, keywords: str = "python") -> List[dict]:
     """Scrape jobs from ArkDev - updated to handle website structure changes"""
     # Note: ArkDev doesn't appear to have search functionality, so keywords are not used in URL
-    url = "https://ark.dev/jobs"
+    # Let's try the main careers page instead of /jobs
+    url = "https://ark.dev"
     try:
         # Use Playwright to get the page content (better for dynamic content)
         page = await context.new_page()
         await page.goto(url)
-        # Wait for job listings to load
-        await page.wait_for_selector("div.job-card, div.job-listing, article", timeout=10000)
+        # Wait for page to load
+        await page.wait_for_timeout(5000)
         content = await page.content()
         await page.close()
         
         soup = BeautifulSoup(content, "html.parser")
         jobs: List[dict] = []
+        
+        # Check if we're on the error page
+        error_title = soup.find("h1")
+        if error_title:
+            error_text = safe_get_text(error_title, "")
+            if "Oops" in error_text:
+                logger.warning("ark.dev returned an error page. Trying to find careers page.")
+                # Try to find a careers link on the main page
+                careers_links = soup.find_all("a")
+                for link in careers_links:
+                    link_text = safe_get_text(link, "")
+                    if "Career" in link_text or "Jobs" in link_text:
+                        href = safe_get_attribute(link, "href", "")
+                        logger.info(f"Found careers link: {href}")
+                        # We would need to navigate to this link, but for now let's return empty
+                        return []
         
         # Try multiple selectors to find job cards
         job_cards = (
@@ -324,7 +388,13 @@ async def scrape_arkdev(context, keywords: str = "python") -> List[dict]:
         if not job_cards:
             logger.warning("No jobs found on ark.dev with current selectors.")
             # Try a more general approach
-            job_cards = soup.find_all("a", href=lambda x: x and "/jobs/" in x)[:5]
+            all_links = soup.find_all("a")
+            job_cards = []
+            for link in all_links:
+                href = link.get("href", "")
+                if href and "/jobs/" in href:
+                    job_cards.append(link)
+            job_cards = job_cards[:5]
             
         if not job_cards:
             logger.warning("No jobs found on ark.dev with fallback selectors.")
@@ -333,42 +403,27 @@ async def scrape_arkdev(context, keywords: str = "python") -> List[dict]:
         for job in job_cards:
             if isinstance(job, Tag):
                 # Extract title
-                title = None
-                title_selectors = [
+                title = extract_job_field(job, [
                     "h3.job-title", "h2.job-title", "h3", "h2", 
                     ".job-title", "[data-job-title]", "h1"
-                ]
-                for selector in title_selectors:
-                    title_elem = job.select_one(selector)
-                    if title_elem:
-                        title = title_elem.get_text(strip=True)
-                        break
+                ])
                 
                 # Extract company
-                company = None
-                company_selectors = [
+                company = extract_job_field(job, [
                     "div.company-name", ".company", "[data-company]", 
                     "span.company", "div.employer"
-                ]
-                for selector in company_selectors:
-                    company_elem = job.select_one(selector)
-                    if company_elem:
-                        company = company_elem.get_text(strip=True)
-                        break
+                ])
                 
                 # Extract link
                 link = "N/A"
-                link_tag = job.find("a", href=True)
+                link_tag = safe_find_element(job, ["a[href]"])
                 if not link_tag:
                     # If job element itself is a link
-                    if job.name == "a" and job.get("href"):
+                    if job.name == "a":
                         link_tag = job
-                    # Or look for any link in the job element
-                    else:
-                        link_tag = job.find("a")
                 
-                if link_tag and link_tag.get("href"):
-                    href = link_tag.get("href")
+                href = safe_get_attribute(link_tag, "href", None)
+                if href:
                     if href.startswith("http"):
                         link = href
                     elif href.startswith("/"):

@@ -22,4 +22,5 @@ dependencies = [
     "playwright>=1.35.0",
     "lxml>=6.0.0",
     "pytest-asyncio>=1.1.0",
+    "python-multipart>=0.0.20",
 ]
