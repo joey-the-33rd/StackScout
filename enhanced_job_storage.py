@@ -5,6 +5,7 @@ Automatically stores job search results in the database with improved error hand
 
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
+from psycopg2 import pool as psycopg2_pool
 from datetime import datetime
 import hashlib
 import json
@@ -13,35 +14,60 @@ from typing import List, Dict, Any
 
 class EnhancedJobStorage:
     def __init__(self):
-        """Initialize database connection with environment variables"""
+        """Initialize database connection with secure environment variables"""
+        self._validate_environment()
         self.db_config = {
-            'host': os.getenv('DB_HOST', 'localhost'),
-            'database': os.getenv('DB_NAME', 'job_scraper_db'),
-            'user': os.getenv('DB_USER', 'joeythe33rd'),
-            'password': os.getenv('DB_PASSWORD', ''),
-            'port': int(os.getenv('DB_PORT', 5432))
+            'host': os.getenv('DB_HOST'),
+            'database': os.getenv('DB_NAME'),
+            'user': os.getenv('DB_USER'),
+            'password': os.getenv('DB_PASSWORD'),
+            'port': int(os.getenv('DB_PORT', 5432)),
+            'sslmode': os.getenv('DB_SSL_MODE', 'prefer'),
+            'connect_timeout': int(os.getenv('DB_CONNECTION_TIMEOUT', 30))
         }
-        self.connection = None
-        self.connect()
+        self.connection_pool = None
+        self._setup_connection_pool()
     
-    def connect(self):
-        """Establish database connection with retry logic"""
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                self.connection = psycopg2.connect(**self.db_config)
-                self.connection.autocommit = True
-                print("✅ Connected to job_scraper_db successfully")
-                return
-            except Exception as e:
-                print(f"❌ Connection attempt {attempt + 1} failed: {e}")
-                if attempt == max_retries - 1:
-                    raise
-        raise Exception("Failed to connect to database after retries")
+    def _validate_environment(self):
+        """Validate required environment variables are set"""
+        required_vars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+        if missing_vars:
+            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+    
+    def _setup_connection_pool(self):
+        """Setup connection pool for better resource management"""
+        try:
+            self.connection_pool = psycopg2_pool.SimpleConnectionPool(
+                minconn=int(os.getenv('DB_MIN_CONNECTIONS', 5)),
+                maxconn=int(os.getenv('DB_MAX_CONNECTIONS', 20)),
+                **self.db_config
+            )
+            print("✅ Database connection pool established successfully")
+        except Exception as e:
+            print(f"❌ Failed to establish connection pool: {e}")
+            raise
+    
+    def get_connection(self):
+        """Get connection from pool with context manager support"""
+        if not self.connection_pool:
+            raise Exception("Connection pool not initialized")
+        return self.connection_pool.getconn()
+    
+    def return_connection(self, connection):
+        """Return connection to pool"""
+        if self.connection_pool and connection:
+            self.connection_pool.putconn(connection)
+    
+    def close(self):
+        """Close all connections in the pool"""
+        if self.connection_pool:
+            self.connection_pool.closeall()
+            print("✅ Database connection pool closed")
     
     def store_search_results(self, search_query: Dict[str, Any], search_results: List[Dict[str, Any]]) -> int:
         """
-        Store job search results in database
+        Store job search results in database with proper connection management
         
         Args:
             search_query: Search parameters used
@@ -50,9 +76,6 @@ class EnhancedJobStorage:
         Returns:
             int: Number of jobs successfully stored
         """
-        if not self.connection:
-            raise Exception("Database connection not established")
-            
         stored_count = 0
         updated_count = 0
         
@@ -71,16 +94,15 @@ class EnhancedJobStorage:
     
     def store_job(self, job_data: Dict[str, Any], search_query: Dict[str, Any]) -> str:
         """
-        Store individual job with deduplication
+        Store individual job with deduplication and proper connection management
         
         Returns:
             str: "stored", "updated", or "skipped"
         """
-        if not self.connection:
-            raise Exception("Database connection not established")
-            
+        connection = None
         try:
-            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            connection = self.get_connection()
+            with connection.cursor(cursor_factory=RealDictCursor) as cursor:
                 # Prepare job data
                 job_record = {
                     'company': job_data.get('company', '').strip(),
@@ -140,35 +162,45 @@ class EnhancedJobStorage:
                 if job_record['source_url']:
                     self.store_search_context(job_record['source_url'], search_query)
                 
+                connection.commit()
                 return action
                 
         except Exception as e:
+            if connection:
+                connection.rollback()
             print(f"❌ Error storing job: {e}")
             return "skipped"
+        finally:
+            if connection:
+                self.return_connection(connection)
     
     def store_search_context(self, source_url: str, search_query: Dict[str, Any]):
-        """Store search context for analytics"""
-        if not self.connection:
-            return
-            
+        """Store search context for analytics with proper connection management"""
+        connection = None
         try:
-            with self.connection.cursor() as cursor:
+            connection = self.get_connection()
+            with connection.cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO search_history (source_url, search_query, search_date)
                     VALUES (%s, %s, %s)
                     ON CONFLICT (source_url, search_query) DO UPDATE SET
                         search_date = EXCLUDED.search_date
                 """, (source_url, json.dumps(search_query), datetime.now()))
+                connection.commit()
         except Exception as e:
+            if connection:
+                connection.rollback()
             print(f"❌ Error storing search context: {e}")
+        finally:
+            if connection:
+                self.return_connection(connection)
     
     def get_recent_searches(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get recent search history"""
-        if not self.connection:
-            return []
-            
+        """Get recent search history with proper connection management"""
+        connection = None
         try:
-            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            connection = self.get_connection()
+            with connection.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
                     SELECT 
                         search_query,
@@ -183,14 +215,16 @@ class EnhancedJobStorage:
         except Exception as e:
             print(f"❌ Error retrieving search history: {e}")
             return []
+        finally:
+            if connection:
+                self.return_connection(connection)
     
     def get_jobs_by_search(self, search_query: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Get jobs that match a specific search query"""
-        if not self.connection:
-            return []
-            
+        """Get jobs that match a specific search query with proper connection management"""
+        connection = None
         try:
-            with self.connection.cursor(cursor_factory=RealDictCursor) as cursor:
+            connection = self.get_connection()
+            with connection.cursor(cursor_factory=RealDictCursor) as cursor:
                 # Build dynamic query based on search parameters
                 conditions = []
                 params = []
@@ -223,12 +257,15 @@ class EnhancedJobStorage:
         except Exception as e:
             print(f"❌ Error retrieving jobs by search: {e}")
             return []
+        finally:
+            if connection:
+                self.return_connection(connection)
     
     def close(self):
-        """Close database connection"""
-        if self.connection:
-            self.connection.close()
-            print("✅ Database connection closed")
+        """Close all connections in the pool"""
+        if self.connection_pool:
+            self.connection_pool.closeall()
+            print("✅ Database connection pool closed")
 
 # Integration with existing scrapers
 class JobSearchIntegrator:
