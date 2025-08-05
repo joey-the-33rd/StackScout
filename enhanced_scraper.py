@@ -109,7 +109,7 @@ class EnhancedJobScraper:
                 return []
     
     async def scrape_jobgether_enhanced(self, keywords: str = "python") -> List[Dict[str, Any]]:
-        """Enhanced JobGether scraper with full schema alignment"""
+        """Enhanced JobGether scraper with concurrent processing for better performance"""
         url = f"https://jobgether.com/remote-jobs?search={keywords}"
         
         async with async_playwright() as p:
@@ -123,80 +123,40 @@ class EnhancedJobScraper:
                 await asyncio.sleep(3)
                 
                 job_elements = await page.query_selector_all("div.new-opportunity")
-                jobs = []
+                job_links = []
                 
+                # Extract basic job information and links
                 for job_element in job_elements[:10]:
-                    # Extract company
                     company_elem = await job_element.query_selector("span.company-name")
                     company = await company_elem.inner_text() if company_elem else ""
                     
-                    # Extract role
                     role_elem = await job_element.query_selector("h2")
                     role = await role_elem.inner_text() if role_elem else ""
                     
-                    # Extract link
                     link_elem = await job_element.query_selector("a[href]")
                     href = await link_elem.get_attribute("href") if link_elem else ""
                     source_url = f"https://jobgether.com{href}" if href.startswith("/") else href
                     
-                    # Navigate to job details page for full description
                     if source_url:
-                        detail_page = await context.new_page()
-                        try:
-                            await detail_page.goto(source_url)
-                            await detail_page.wait_for_selector("body", timeout=10000)
-                            
-                            # Extract full description
-                            description_elem = await detail_page.query_selector("div.job-description")
-                            description = await description_elem.inner_text() if description_elem else ""
-                            
-                            # Extract tech stack from tags
-                            tech_elems = await detail_page.query_selector_all("div.skill-tag, span.skill")
-                            tech_stack = []
-                            for tech_elem in tech_elems:
-                                tech_text = await tech_elem.inner_text()
-                                if tech_text:
-                                    tech_stack.append(tech_text.strip())
-                            
-                            # Extract salary
-                            salary_elem = await detail_page.query_selector("div.salary-range, span.salary")
-                            salary = await salary_elem.inner_text() if salary_elem else ""
-                            
-                            # Extract location
-                            location_elem = await detail_page.query_selector("div.location, span.location")
-                            location = await location_elem.inner_text() if location_elem else "Remote"
-                            
-                            # Extract job type
-                            job_type_elem = await detail_page.query_selector("div.job-type, span.job-type")
-                            job_type = await job_type_elem.inner_text() if job_type_elem else "Full-time"
-                            
-                            # Extract requirements and benefits
-                            requirements = self.extract_requirements(description)
-                            benefits = self.extract_benefits(description)
-                            
-                            keywords_list = [kw.strip() for kw in keywords.split(",")]
-                            
-                            jobs.append({
-                                "company": company.strip(),
-                                "role": role.strip(),
-                                "tech_stack": tech_stack,
-                                "job_type": job_type.strip(),
-                                "salary": salary.strip(),
-                                "location": location.strip(),
-                                "description": description.strip(),
-                                "requirements": requirements,
-                                "benefits": benefits,
-                                "source_platform": "JobGether",
-                                "source_url": source_url,
-                                "posted_date": datetime.now(),
-                                "keywords": keywords_list,
-                                "is_active": True
-                            })
-                            
-                        except Exception as detail_error:
-                            print(f"Error loading job details: {detail_error}")
-                        finally:
-                            await detail_page.close()
+                        job_links.append({
+                            'company': company,
+                            'role': role,
+                            'source_url': source_url
+                        })
+                
+                # Process job details concurrently
+                semaphore = asyncio.Semaphore(5)  # Limit concurrent requests
+                
+                async def process_job_detail(job_info):
+                    async with semaphore:
+                        return await self._extract_job_details(context, job_info, keywords)
+                
+                # Process all jobs concurrently
+                tasks = [process_job_detail(job) for job in job_links]
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Filter out exceptions and None results
+                jobs = [result for result in results if isinstance(result, dict)]
                 
                 await browser.close()
                 return jobs
@@ -205,6 +165,68 @@ class EnhancedJobScraper:
                 print(f"Error scraping JobGether: {e}")
                 await browser.close()
                 return []
+    
+    async def _extract_job_details(self, context, job_info: Dict[str, Any], keywords: str) -> Dict[str, Any]:
+        """Extract detailed job information with proper resource management"""
+        detail_page = None
+        try:
+            detail_page = await context.new_page()
+            await detail_page.goto(job_info['source_url'])
+            await detail_page.wait_for_selector("body", timeout=10000)
+            
+            # Extract full description
+            description_elem = await detail_page.query_selector("div.job-description")
+            description = await description_elem.inner_text() if description_elem else ""
+            
+            # Extract tech stack from tags
+            tech_elems = await detail_page.query_selector_all("div.skill-tag, span.skill")
+            tech_stack = []
+            for tech_elem in tech_elems:
+                tech_text = await tech_elem.inner_text()
+                if tech_text:
+                    tech_stack.append(tech_text.strip())
+            
+            # Extract salary
+            salary_elem = await detail_page.query_selector("div.salary-range, span.salary")
+            salary = await salary_elem.inner_text() if salary_elem else ""
+            
+            # Extract location
+            location_elem = await detail_page.query_selector("div.location, span.location")
+            location = await location_elem.inner_text() if location_elem else "Remote"
+            
+            # Extract job type
+            job_type_elem = await detail_page.query_selector("div.job-type, span.job-type")
+            job_type = await job_type_elem.inner_text() if job_type_elem else "Full-time"
+            
+            # Extract requirements and benefits
+            requirements = self.extract_requirements(description)
+            benefits = self.extract_benefits(description)
+            
+            keywords_list = [kw.strip() for kw in keywords.split(",")]
+            
+            return {
+                "company": job_info['company'].strip(),
+                "role": job_info['role'].strip(),
+                "tech_stack": tech_stack,
+                "job_type": job_type.strip(),
+                "salary": salary.strip(),
+                "location": location.strip(),
+                "description": description.strip(),
+                "requirements": requirements,
+                "benefits": benefits,
+                "source_platform": "JobGether",
+                "source_url": job_info['source_url'],
+                "posted_date": datetime.now(),
+                "keywords": keywords_list,
+                "is_active": True
+            }
+            
+        except Exception as detail_error:
+            print(f"Error loading job details for {job_info.get('source_url', 'Unknown')}: {detail_error}")
+            return None
+        finally:
+            if detail_page:
+                await detail_page.close()
     
     def extract_salary(self, text: str) -> str:
         """Extract salary information from text"""
