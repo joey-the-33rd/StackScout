@@ -1,4 +1,5 @@
 import asyncio
+from typing import List, Dict, Optional, Union
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup, Tag
 from bs4.element import NavigableString
