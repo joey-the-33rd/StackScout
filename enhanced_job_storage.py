@@ -29,11 +29,36 @@ class EnhancedJobStorage:
         self._setup_connection_pool()
     
     def _validate_environment(self):
-        """Validate required environment variables are set"""
+        """Validate required environment variables are set with security checks"""
         required_vars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']
         missing_vars = [var for var in required_vars if not os.getenv(var)]
         if missing_vars:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+        
+        # Additional security validation
+        password = os.getenv('DB_PASSWORD')
+        if password and len(password) < 8:
+            raise ValueError("Database password must be at least 8 characters long")
+        
+        # Validate host format
+        host = os.getenv('DB_HOST')
+        if host and not (host.startswith('localhost') or '.' in host or host.startswith('127.0.0.1')):
+            raise ValueError("Invalid database host format")
+        
+        # Validate port
+        port = os.getenv('DB_PORT', '5432')
+        try:
+            port_int = int(port)
+            if not (1 <= port_int <= 65535):
+                raise ValueError("Database port must be between 1 and 65535")
+        except ValueError:
+            raise ValueError("Database port must be a valid integer")
+        
+        # Validate SSL mode
+        ssl_mode = os.getenv('DB_SSL_MODE', 'prefer')
+        valid_ssl_modes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full']
+        if ssl_mode not in valid_ssl_modes:
+            raise ValueError(f"Invalid SSL mode. Must be one of: {', '.join(valid_ssl_modes)}")
     
     def _setup_connection_pool(self):
         """Setup connection pool for better resource management"""
@@ -58,6 +83,31 @@ class EnhancedJobStorage:
         """Return connection to pool"""
         if self.connection_pool and connection:
             self.connection_pool.putconn(connection)
+    
+    def connection_context(self):
+        """Context manager for database connections to prevent resource leaks"""
+        class ConnectionContext:
+            def __init__(self, pool):
+                self.pool = pool
+                self.conn = None
+            
+            def __enter__(self):
+                if not self.pool:
+                    raise Exception("Connection pool not initialized")
+                self.conn = self.pool.getconn()
+                return self.conn
+            
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                if self.conn:
+                    if exc_type is not None:
+                        # Rollback on exception
+                        try:
+                            self.conn.rollback()
+                        except:
+                            pass
+                    self.pool.putconn(self.conn)
+        
+        return ConnectionContext(self.connection_pool)
     
     def close(self):
         """Close all connections in the pool"""
