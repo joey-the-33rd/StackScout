@@ -20,28 +20,112 @@ function escapeHtml(unsafe) {
 }
 
 /**
- * Sanitizes job data for safe HTML rendering
+ * Deep sanitizes job data including nested objects and arrays
  * @param {object} job - The job object to sanitize
- * @returns {object} - Sanitized job object
+ * @returns {object} - Sanitized job object with all strings escaped
  */
 function sanitizeJobData(job) {
-    const sanitized = {};
-    for (const [key, value] of Object.entries(job)) {
-        if (typeof value === 'string') {
-            sanitized[key] = escapeHtml(value);
-        } else if (Array.isArray(value)) {
-            sanitized[key] = value.map(item => escapeHtml(item));
-        } else {
-            sanitized[key] = value;
-        }
+    if (typeof job === 'string') {
+        return escapeHtml(job);
     }
-    return sanitized;
+    
+    if (Array.isArray(job)) {
+        return job.map(item => sanitizeJobData(item));
+    }
+    
+    if (job !== null && typeof job === 'object') {
+        const sanitized = {};
+        for (const [key, value] of Object.entries(job)) {
+            sanitized[key] = sanitizeJobData(value);
+        }
+        return sanitized;
+    }
+    
+    return job;
 }
 
 /**
- * Creates a safe DOM element with sanitized content
+ * Validates if a URL is safe to use as href
+ * @param {string} url - The URL to validate
+ * @returns {boolean} - True if URL is safe
+ */
+function isSafeUrl(url) {
+    if (typeof url !== 'string') {
+        return false;
+    }
+    
+    try {
+        const parsedUrl = new URL(url);
+        const allowedProtocols = ['http:', 'https:', 'mailto:', 'tel:'];
+        return allowedProtocols.includes(parsedUrl.protocol.toLowerCase());
+    } catch (e) {
+        // If URL parsing fails, it's likely a relative URL or malformed
+        // Allow relative URLs but block javascript: and data: schemes
+        const lowerUrl = url.toLowerCase().trim();
+        return !lowerUrl.startsWith('javascript:') && 
+               !lowerUrl.startsWith('data:') && 
+               !lowerUrl.startsWith('vbscript:') &&
+               !lowerUrl.startsWith('file:');
+    }
+}
+
+/**
+ * Whitelist of safe HTML attributes
+ */
+const SAFE_ATTRIBUTES = new Set([
+    'class', 'className', 'id', 'href', 'src', 'alt', 'title', 'type',
+    'value', 'placeholder', 'disabled', 'readonly', 'checked', 'selected',
+    'data-', 'aria-', 'role', 'tabindex', 'style', 'target', 'rel',
+    'width', 'height', 'maxlength', 'minlength', 'pattern', 'required'
+]);
+
+/**
+ * Checks if an attribute name is safe
+ * @param {string} attrName - The attribute name to check
+ * @returns {boolean} - True if attribute is safe
+ */
+function isSafeAttribute(attrName) {
+    if (typeof attrName !== 'string') {
+        return false;
+    }
+    
+    const lowerAttr = attrName.toLowerCase();
+    
+    // Block all event handlers (on*)
+    if (lowerAttr.startsWith('on')) {
+        return false;
+    }
+    
+    // Block dangerous attributes
+    const dangerousAttrs = new Set([
+        'javascript:', 'vbscript:', 'data:', 'expression(', 'behavior',
+        'binding', 'dynsrc', 'lowsrc', 'srcdoc', 'formaction'
+    ]);
+    
+    for (const dangerous of dangerousAttrs) {
+        if (lowerAttr.includes(dangerous)) {
+            return false;
+        }
+    }
+    
+    // Check against whitelist
+    for (const safe of SAFE_ATTRIBUTES) {
+        if (safe.endsWith('-')) {
+            if (lowerAttr.startsWith(safe)) {
+                return true;
+            }
+        } else if (lowerAttr === safe) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Creates a safe DOM element with sanitized content and validated attributes
  * @param {string} tagName - The HTML tag name
- * @param {object} attributes - Element attributes
+ * @param {object} attributes - Element attributes (will be validated)
  * @param {string} textContent - Text content (will be escaped)
  * @returns {HTMLElement} - Safe DOM element
  */
@@ -49,7 +133,23 @@ function createSafeElement(tagName, attributes = {}, textContent = '') {
     const element = document.createElement(tagName);
     
     for (const [key, value] of Object.entries(attributes)) {
-        element.setAttribute(key, value);
+        if (isSafeAttribute(key)) {
+            // Special handling for href attributes
+            if (key.toLowerCase() === 'href' && !isSafeUrl(value)) {
+                console.warn(`Blocked unsafe URL: ${value}`);
+                continue;
+            }
+            
+            // Special handling for src attributes
+            if (key.toLowerCase() === 'src' && !isSafeUrl(value)) {
+                console.warn(`Blocked unsafe src URL: ${value}`);
+                continue;
+            }
+            
+            element.setAttribute(key, value);
+        } else {
+            console.warn(`Blocked unsafe attribute: ${key}`);
+        }
     }
     
     if (textContent) {
@@ -118,7 +218,8 @@ function createSafeJobCard(job) {
     const viewLink = createSafeElement('a', {
         href: sanitizedJob.source_url,
         className: 'text-blue-600 hover:underline',
-        target: '_blank'
+        target: '_blank',
+        rel: 'noopener noreferrer'
     }, 'View Job');
     
     const saveButton = createSafeElement('button', {
@@ -140,5 +241,7 @@ window.SecurityUtils = {
     escapeHtml: escapeHtml,
     sanitizeJobData: sanitizeJobData,
     createSafeElement: createSafeElement,
-    createSafeJobCard: createSafeJobCard
+    createSafeJobCard: createSafeJobCard,
+    isSafeUrl: isSafeUrl,
+    isSafeAttribute: isSafeAttribute
 };
