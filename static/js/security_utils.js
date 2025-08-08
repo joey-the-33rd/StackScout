@@ -198,7 +198,7 @@ function createSafeJobCard(job) {
     });
     
     const techStack = createSafeElement('p', {}, 
-        `Tech Stack: ${sanitizedJob.tech_stack.join(', ') || 'Not specified'}`);
+        `Tech Stack: ${Array.isArray(sanitizedJob.tech_stack) ? sanitizedJob.tech_stack.join(', ') : 'Not specified'}`);
     const location = createSafeElement('p', {}, 
         `Location: ${sanitizedJob.location}`);
     const salary = createSafeElement('p', {}, 
