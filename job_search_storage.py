@@ -8,6 +8,7 @@ from psycopg2.extras import Json
 from datetime import datetime
 import hashlib
 import json
+import logging
 
 class JobSearchStorage:
     def __init__(self, db_config):
@@ -65,17 +66,47 @@ class JobSearchStorage:
                 tech_stack = job_data.get('tech_stack', [])
                 keywords = job_data.get('keywords', [])
                 
-                # Ensure arrays are properly formatted
+                # Ensure arrays are properly formatted with explicit validation and logging
                 if isinstance(tech_stack, str):
                     try:
-                        tech_stack = json.loads(tech_stack)
-                    except:
+                        parsed_tech_stack = json.loads(tech_stack)
+                        # Validate that parsed data is a list
+                        if isinstance(parsed_tech_stack, list):
+                            tech_stack = parsed_tech_stack
+                        else:
+                            logging.warning(f"Invalid tech_stack format: expected list, got {type(parsed_tech_stack)}. Using original string as single item.")
+                            tech_stack = [tech_stack]
+                    except json.JSONDecodeError as e:
+                        logging.warning(f"Failed to parse tech_stack JSON: {e}. Input: {tech_stack}. Using string as single item.")
                         tech_stack = [tech_stack]
+                    except Exception as e:
+                        logging.error(f"Unexpected error parsing tech_stack: {e}. Input: {tech_stack}. Using string as single item.")
+                        tech_stack = [tech_stack]
+                
+                # Handle keywords JSON parsing with explicit validation and logging
                 if isinstance(keywords, str):
                     try:
-                        keywords = json.loads(keywords)
-                    except:
+                        parsed_keywords = json.loads(keywords)
+                        if isinstance(parsed_keywords, list):
+                            keywords = parsed_keywords
+                        else:
+                            logging.warning(f"Invalid keywords format: expected list, got {type(parsed_keywords)}. Using original string as single item.")
+                            keywords = [keywords]
+                    except json.JSONDecodeError as e:
+                        logging.warning(f"Failed to parse keywords JSON: {e}. Input: {keywords}. Using string as single item.")
                         keywords = [keywords]
+                    except Exception as e:
+                        logging.error(f"Unexpected error parsing keywords: {e}. Input: {keywords}. Using string as single item.")
+                        keywords = [keywords]
+                
+                # Ensure final values are lists
+                if not isinstance(tech_stack, list):
+                    logging.warning(f"tech_stack is not a list after processing: {type(tech_stack)}. Converting to list.")
+                    tech_stack = [str(tech_stack)] if tech_stack is not None else []
+                
+                if not isinstance(keywords, list):
+                    logging.warning(f"keywords is not a list after processing: {type(keywords)}. Converting to list.")
+                    keywords = [str(keywords)] if keywords is not None else []
                 
                 job_record = {
                     'company': str(job_data.get('company', '')),
