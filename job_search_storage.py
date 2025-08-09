@@ -8,6 +8,7 @@ from psycopg2.extras import Json
 from datetime import datetime
 import hashlib
 import json
+import logging
 
 class JobSearchStorage:
     def __init__(self, db_config):
@@ -61,21 +62,66 @@ class JobSearchStorage:
                 # Generate unique hash for deduplication
                 job_hash = self.generate_job_hash(job_data)
                 
-                # Prepare job data for insertion
+                # Prepare job data for insertion - handle array types properly
+                tech_stack = job_data.get('tech_stack', [])
+                keywords = job_data.get('keywords', [])
+                
+                # Ensure arrays are properly formatted with explicit validation and logging
+                if isinstance(tech_stack, str):
+                    try:
+                        parsed_tech_stack = json.loads(tech_stack)
+                        # Validate that parsed data is a list
+                        if isinstance(parsed_tech_stack, list):
+                            tech_stack = parsed_tech_stack
+                        else:
+                            logging.warning(f"Invalid tech_stack format: expected list, got {type(parsed_tech_stack)}. Using original string as single item.")
+                            tech_stack = [tech_stack]
+                    except json.JSONDecodeError as e:
+                        logging.warning(f"Failed to parse tech_stack JSON: {e}. Input: {tech_stack}. Using string as single item.")
+                        tech_stack = [tech_stack]
+                    except Exception as e:
+                        logging.error(f"Unexpected error parsing tech_stack: {e}. Input: {tech_stack}. Using string as single item.")
+                        tech_stack = [tech_stack]
+                
+                # Handle keywords JSON parsing with explicit validation and logging
+                if isinstance(keywords, str):
+                    try:
+                        parsed_keywords = json.loads(keywords)
+                        if isinstance(parsed_keywords, list):
+                            keywords = parsed_keywords
+                        else:
+                            logging.warning(f"Invalid keywords format: expected list, got {type(parsed_keywords)}. Using original string as single item.")
+                            keywords = [keywords]
+                    except json.JSONDecodeError as e:
+                        logging.warning(f"Failed to parse keywords JSON: {e}. Input: {keywords}. Using string as single item.")
+                        keywords = [keywords]
+                    except Exception as e:
+                        logging.error(f"Unexpected error parsing keywords: {e}. Input: {keywords}. Using string as single item.")
+                        keywords = [keywords]
+                
+                # Ensure final values are lists
+                if not isinstance(tech_stack, list):
+                    logging.warning(f"tech_stack is not a list after processing: {type(tech_stack)}. Converting to list.")
+                    tech_stack = [str(tech_stack)] if tech_stack is not None else []
+                
+                if not isinstance(keywords, list):
+                    logging.warning(f"keywords is not a list after processing: {type(keywords)}. Converting to list.")
+                    keywords = [str(keywords)] if keywords is not None else []
+                
                 job_record = {
-                    'company': job_data.get('company', ''),
-                    'role': job_data.get('role', ''),
-                    'tech_stack': job_data.get('tech_stack', []),
-                    'job_type': job_data.get('job_type', ''),
-                    'salary': job_data.get('salary', ''),
-                    'location': job_data.get('location', ''),
-                    'description': job_data.get('description', ''),
-                    'requirements': job_data.get('requirements', {}),
-                    'benefits': job_data.get('benefits', {}),
-                    'source_platform': job_data.get('source_platform', ''),
-                    'source_url': job_data.get('source_url', ''),
-                    'posted_date': job_data.get('posted_date'),
-                    'keywords': job_data.get('keywords', []),
+                    'company': str(job_data.get('company', '')),
+                    'role': str(job_data.get('role', '')),
+                    'tech_stack': tech_stack,
+                    'job_type': str(job_data.get('job_type', '')),
+                    'salary': str(job_data.get('salary', '')),
+                    'location': str(job_data.get('location', '')),
+                    'description': str(job_data.get('description', '')),
+                    'requirements': Json(job_data.get('requirements', {})),
+                    'benefits': Json(job_data.get('benefits', {})),
+                    'source_platform': str(job_data.get('source_platform', '')),
+                    'source_url': str(job_data.get('source_url', '')),
+                    'posted_date': str(job_data.get('posted_date', '')),
+                    'keywords': keywords,
                     'is_active': True
                 }
                 
