@@ -1,0 +1,15 @@
+{
+  "name": "stackscout",
+  "version": "1.0.0",
+  "description": "Production-ready StackScout with Tailwind CSS",
+  "scripts": {
+    "build-css": "tailwindcss -i ./src/styles/input.css -o ./static/css/output.css --minify",
+    "watch-css": "tailwindcss -i ./src/styles/input.css -o ./static/css/output.css --watch",
+    "dev": "npm run watch-css & python -m uvicorn stackscout_web:app --reload --host 0.0.0.0 --port 8000"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  }
+}
