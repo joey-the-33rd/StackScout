@@ -1,10 +1,13 @@
 import os
 import asyncio
+import json
+from datetime import datetime
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
+from pydantic import BaseModel
 
 from enhanced_scraper import EnhancedJobScraper
 from job_search_storage import JobSearchStorage, DB_CONFIG
@@ -48,6 +51,70 @@ async def run_job_search(request: Request):
         return templates.TemplateResponse("results.html", {"request": request, "results": [], "error": "Job search failed. Please try again later."})
 
     return templates.TemplateResponse("results.html", {"request": request, "results": results})
+
+class SearchRequest(BaseModel):
+    keywords: str
+    location: str = ""
+    job_type: str = ""
+
+def serialize_for_json(obj):
+    """Convert non-JSON serializable objects to JSON serializable format"""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: serialize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize_for_json(item) for item in obj]
+    return obj
+
+@app.post("/api/search")
+async def api_search(request: SearchRequest):
+    """API endpoint for job search"""
+    try:
+        scraper = EnhancedJobScraper()
+        results = await scraper.scrape_all_platforms(request.keywords)
+        
+        # Convert datetime and dict fields to JSON serializable format
+        serialized_results = [serialize_for_json(job) for job in results]
+        
+        # Store results in database
+        storage = JobSearchStorage(DB_CONFIG)
+        search_query = {
+            "keywords": request.keywords,
+            "location": request.location,
+            "job_type": request.job_type
+        }
+        storage.store_search_results(search_query, serialized_results)
+        storage.close()
+        
+        return JSONResponse(content={"results": serialized_results})
+    except Exception as e:
+        logger.error(f"API search failed: {e}")
+        return JSONResponse(content={"results": [], "error": str(e)}, status_code=500)
+
+@app.post("/api/jobs/save")
+async def api_save_job(request: Request):
+    """API endpoint to save a job"""
+    try:
+        data = await request.json()
+        job_data = data.get("job_data")
+        
+        # Convert datetime and dict fields to JSON serializable format
+        serialized_job = serialize_for_json(job_data)
+        
+        storage = JobSearchStorage(DB_CONFIG)
+        success = storage.store_job(serialized_job, {})
+        storage.close()
+        
+        return JSONResponse(content={"success": success})
+    except Exception as e:
+        logger.error(f"Save job failed: {e}")
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
+
+@app.get("/favicon.ico")
+def favicon():
+    """Serve favicon"""
+    return StaticFiles(directory="static").lookup_path("favicon.ico")
 
 @app.get("/apple-touch-icon.png")
 def apple_touch_icon():
