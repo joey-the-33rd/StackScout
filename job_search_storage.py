@@ -61,21 +61,36 @@ class JobSearchStorage:
                 # Generate unique hash for deduplication
                 job_hash = self.generate_job_hash(job_data)
                 
-                # Prepare job data for insertion
+                # Prepare job data for insertion - handle array types properly
+                tech_stack = job_data.get('tech_stack', [])
+                keywords = job_data.get('keywords', [])
+                
+                # Ensure arrays are properly formatted
+                if isinstance(tech_stack, str):
+                    try:
+                        tech_stack = json.loads(tech_stack)
+                    except:
+                        tech_stack = [tech_stack]
+                if isinstance(keywords, str):
+                    try:
+                        keywords = json.loads(keywords)
+                    except:
+                        keywords = [keywords]
+                
                 job_record = {
-                    'company': job_data.get('company', ''),
-                    'role': job_data.get('role', ''),
-                    'tech_stack': job_data.get('tech_stack', []),
-                    'job_type': job_data.get('job_type', ''),
-                    'salary': job_data.get('salary', ''),
-                    'location': job_data.get('location', ''),
-                    'description': job_data.get('description', ''),
-                    'requirements': job_data.get('requirements', {}),
-                    'benefits': job_data.get('benefits', {}),
-                    'source_platform': job_data.get('source_platform', ''),
-                    'source_url': job_data.get('source_url', ''),
-                    'posted_date': job_data.get('posted_date'),
-                    'keywords': job_data.get('keywords', []),
+                    'company': str(job_data.get('company', '')),
+                    'role': str(job_data.get('role', '')),
+                    'tech_stack': tech_stack,
+                    'job_type': str(job_data.get('job_type', '')),
+                    'salary': str(job_data.get('salary', '')),
+                    'location': str(job_data.get('location', '')),
+                    'description': str(job_data.get('description', '')),
+                    'requirements': Json(job_data.get('requirements', {})),
+                    'benefits': Json(job_data.get('benefits', {})),
+                    'source_platform': str(job_data.get('source_platform', '')),
+                    'source_url': str(job_data.get('source_url', '')),
+                    'posted_date': str(job_data.get('posted_date', '')),
+                    'keywords': keywords,
                     'is_active': True
                 }
                 
