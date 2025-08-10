@@ -114,7 +114,16 @@ async def api_save_job(request: Request):
 @app.get("/favicon.ico")
 def favicon():
     """Serve favicon"""
-    return StaticFiles(directory="static").lookup_path("favicon.ico")
+    from fastapi.responses import FileResponse
+    import os
+    
+    favicon_path = os.path.join("static", "favicon.ico")
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path, media_type="image/x-icon")
+    else:
+        # Return a simple 404 if favicon doesn't exist
+        from fastapi.responses import Response
+        return Response(status_code=404)
 
 @app.get("/apple-touch-icon.png")
 def apple_touch_icon():
