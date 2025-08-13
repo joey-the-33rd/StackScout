@@ -198,6 +198,121 @@ class JobSearchStorage:
             print(f"❌ Error retrieving search history: {e}")
             return []
     
+    def get_database_stats(self):
+        """Get comprehensive database statistics"""
+        try:
+            with self.connection.cursor() as cursor:
+                # Total jobs count
+                cursor.execute("SELECT COUNT(*) FROM jobs")
+                total_jobs = cursor.fetchone()[0]
+                
+                # Active jobs count
+                cursor.execute("SELECT COUNT(*) FROM jobs WHERE is_active = true")
+                active_jobs = cursor.fetchone()[0]
+                
+                # Jobs this week
+                cursor.execute("""
+                    SELECT COUNT(*) FROM jobs 
+                    WHERE scraped_date >= CURRENT_DATE - INTERVAL '7 days'
+                """)
+                week_jobs = cursor.fetchone()[0]
+                
+                # Jobs by platform
+                cursor.execute("""
+                    SELECT source_platform, COUNT(*) 
+                    FROM jobs 
+                    GROUP BY source_platform 
+                    ORDER BY COUNT(*) DESC
+                """)
+                platform_stats = cursor.fetchall()
+                
+                # Growth rate (comparing last 7 days to previous 7 days)
+                cursor.execute("""
+                    SELECT 
+                        COUNT(CASE WHEN scraped_date >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as recent,
+                        COUNT(CASE WHEN scraped_date >= CURRENT_DATE - INTERVAL '14 days' 
+                                  AND scraped_date < CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as previous
+                    FROM jobs
+                """)
+                recent, previous = cursor.fetchone()
+                growth_rate = 0
+                if previous > 0:
+                    growth_rate = ((recent - previous) / previous) * 100
+                
+                return {
+                    "total_jobs": total_jobs,
+                    "active_jobs": active_jobs,
+                    "week_jobs": week_jobs,
+                    "growth_rate": round(growth_rate, 2),
+                    "platform_stats": dict(platform_stats)
+                }
+        except Exception as e:
+            print(f"❌ Error getting database stats: {e}")
+            return {
+                "total_jobs": 0,
+                "active_jobs": 0,
+                "week_jobs": 0,
+                "growth_rate": 0,
+                "platform_stats": {}
+            }
+    
+    def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status=""):
+        """Get jobs with filtering and pagination"""
+        try:
+            with self.connection.cursor() as cursor:
+                query = """
+                    SELECT id, company, role, tech_stack, job_type, salary, location,
+                           description, source_platform, source_url, posted_date,
+                           scraped_date, is_active
+                    FROM jobs
+                    WHERE 1=1
+                """
+                params = []
+                
+                if search:
+                    query += " AND (company ILIKE %s OR role ILIKE %s OR description ILIKE %s)"
+                    search_param = f"%{search}%"
+                    params.extend([search_param, search_param, search_param])
+                
+                if platform:
+                    query += " AND source_platform = %s"
+                    params.append(platform)
+                
+                if status == "active":
+                    query += " AND is_active = true"
+                elif status == "expired":
+                    query += " AND is_active = false"
+                
+                query += " ORDER BY scraped_date DESC LIMIT %s OFFSET %s"
+                params.extend([limit, offset])
+                
+                cursor.execute(query, params)
+                columns = [desc[0] for desc in cursor.description]
+                results = []
+                for row in cursor.fetchall():
+                    job = dict(zip(columns, row))
+                    # Convert arrays to lists
+                    if isinstance(job.get('tech_stack'), str):
+                        job['tech_stack'] = job['tech_stack'].strip('{}').split(',') if job['tech_stack'] else []
+                    if isinstance(job.get('keywords'), str):
+                        job['keywords'] = job['keywords'].strip('{}').split(',') if job['keywords'] else []
+                    results.append(job)
+                
+                return results
+        except Exception as e:
+            print(f"❌ Error getting filtered jobs: {e}")
+            return []
+    
+    def delete_job(self, job_id):
+        """Delete a specific job by ID"""
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"❌ Error deleting job: {e}")
+            return False
+    
     def close(self):
         """Close database connection"""
         if self.connection:

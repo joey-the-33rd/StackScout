@@ -113,17 +113,76 @@ async def api_save_job(request: Request):
 
 @app.get("/favicon.ico")
 def favicon():
-    """Serve favicon"""
+    """Serve favicon with proper media type and caching"""
     from fastapi.responses import FileResponse
     import os
     
     favicon_path = os.path.join("static", "favicon.ico")
     if os.path.exists(favicon_path):
-        return FileResponse(favicon_path, media_type="image/x-icon")
+        return FileResponse(
+            favicon_path, 
+            media_type="image/vnd.microsoft.icon",
+            headers={
+                "Cache-Control": "public, max-age=31536000, immutable"
+            }
+        )
     else:
         # Return a simple 404 if favicon doesn't exist
         from fastapi.responses import Response
         return Response(status_code=404)
+
+@app.get("/database/manager", response_class=HTMLResponse)
+def database_manager(request: Request):
+    """Serve the database manager page"""
+    return templates.TemplateResponse("database_manager_enhanced.html", {"request": request})
+
+@app.get("/api/database/stats")
+async def get_database_stats():
+    """Get database statistics for the manager dashboard"""
+    try:
+        storage = JobSearchStorage(DB_CONFIG)
+        stats = storage.get_database_stats()
+        storage.close()
+        return JSONResponse(content=stats)
+    except Exception as e:
+        logger.error(f"Database stats failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/api/database/jobs")
+async def get_jobs(
+    limit: int = 100,
+    offset: int = 0,
+    search: str = "",
+    platform: str = "",
+    status: str = ""
+):
+    """Get jobs with filtering and pagination"""
+    try:
+        storage = JobSearchStorage(DB_CONFIG)
+        jobs = storage.get_jobs_filtered(
+            limit=limit,
+            offset=offset,
+            search=search,
+            platform=platform,
+            status=status
+        )
+        storage.close()
+        return JSONResponse(content={"jobs": jobs})
+    except Exception as e:
+        logger.error(f"Get jobs failed: {e}")
+        return JSONResponse(content={"jobs": [], "error": str(e)}, status_code=500)
+
+@app.delete("/api/database/jobs/{job_id}")
+async def delete_job(job_id: int):
+    """Delete a specific job"""
+    try:
+        storage = JobSearchStorage(DB_CONFIG)
+        success = storage.delete_job(job_id)
+        storage.close()
+        return JSONResponse(content={"success": success})
+    except Exception as e:
+        logger.error(f"Delete job failed: {e}")
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
 @app.get("/apple-touch-icon.png")
 def apple_touch_icon():
