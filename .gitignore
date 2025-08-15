@@ -40,6 +40,7 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.example
 
 # IDE and editor files
 .vscode/
@@ -56,3 +57,21 @@ build/
 .Trashes
 ehthumbs.db
 Thumbs.db
+# Ohter personal files
+*.bak
+*.tmp
+*.orig
+*.log
+*.pid
+*.seed
+*.coverage
+*.cache
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project   
+
+# md files
+database_config_specs.md
+
+# Documentation outputs
