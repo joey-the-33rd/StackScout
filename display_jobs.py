@@ -16,7 +16,7 @@ class JobDisplay:
         self.db_config = {
             'host': os.getenv('DB_HOST', 'localhost'),
             'database': os.getenv('DB_NAME', 'job_scraper_db'),
-            'user': os.getenv('DB_USER', 'joeythe33rd'),
+            'user': os.getenv('DB_USER'),
             'password': os.getenv('DB_PASSWORD', ''),
             'port': int(os.getenv('DB_PORT', 5432))
         }
