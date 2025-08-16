@@ -22,9 +22,12 @@ class JobSearchStorage:
         try:
             self.connection = psycopg2.connect(**self.db_config)
             self.connection.autocommit = True
-            print("✅ Connected to job_scraper_db successfully")
+            logging.info("✅ Connected to job_scraper_db successfully")
+        except psycopg2.Error as e:
+            logging.error(f"❌ Database connection failed: {e}", exc_info=True)
+            raise
         except Exception as e:
-            print(f"❌ Database connection failed: {e}")
+            logging.error(f"❌ Unexpected error during database connection: {e}", exc_info=True)
             raise
     
     def store_search_results(self, search_query, search_results):
@@ -41,9 +44,9 @@ class JobSearchStorage:
                 if self.store_job(job, search_query):
                     stored_count += 1
             except Exception as e:
-                print(f"❌ Failed to store job: {e}")
+                logging.error(f"❌ Failed to store job for company={job.get('company', 'unknown')}: {e}", exc_info=True)
         
-        print(f"✅ Stored {stored_count} jobs from search query: {search_query}")
+        logging.info(f"✅ Stored {stored_count} jobs from search query: {search_query}")
         return stored_count
     
     def store_job(self, job_data, search_query):
@@ -160,14 +163,21 @@ class JobSearchStorage:
                 
                 return True
                 
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
+            return False
         except Exception as e:
-            print(f"❌ Error storing job: {e}")
+            logging.error(f"❌ Unexpected error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
             return False
     
     def generate_job_hash(self, job_data):
         """Generate unique hash for job deduplication"""
-        hash_input = f"{job_data.get('company', '')}{job_data.get('role', '')}{job_data.get('source_url', '')}"
-        return hashlib.md5(hash_input.encode()).hexdigest()
+        try:
+            hash_input = f"{job_data.get('company', '')}{job_data.get('role', '')}{job_data.get('source_url', '')}"
+            return hashlib.md5(hash_input.encode()).hexdigest()
+        except Exception as e:
+            logging.error(f"❌ Error generating job hash: {e}", exc_info=True)
+            return None
     
     def store_search_context(self, source_url, search_query):
         """Store search context for analytics"""
@@ -179,8 +189,10 @@ class JobSearchStorage:
                     ON CONFLICT (source_url, search_query) DO UPDATE SET
                         search_date = EXCLUDED.search_date
                 """, (source_url, json.dumps(search_query), datetime.now()))
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error storing search context for URL={source_url}: {e}", exc_info=True)
         except Exception as e:
-            print(f"❌ Error storing search context: {e}")
+            logging.error(f"❌ Unexpected error storing search context for URL={source_url}: {e}", exc_info=True)
     
     def get_search_history(self, limit=100):
         """Retrieve recent search history"""
@@ -194,8 +206,11 @@ class JobSearchStorage:
                     LIMIT %s
                 """, (limit,))
                 return cursor.fetchall()
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error retrieving search history: {e}", exc_info=True)
+            return []
         except Exception as e:
-            print(f"❌ Error retrieving search history: {e}")
+            logging.error(f"❌ Unexpected error retrieving search history: {e}", exc_info=True)
             return []
     
     def get_database_stats(self):
@@ -246,8 +261,17 @@ class JobSearchStorage:
                     "growth_rate": round(growth_rate, 2),
                     "platform_stats": dict(platform_stats)
                 }
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error getting database stats: {e}", exc_info=True)
+            return {
+                "total_jobs": 0,
+                "active_jobs": 0,
+                "week_jobs": 0,
+                "growth_rate": 0,
+                "platform_stats": {}
+            }
         except Exception as e:
-            print(f"❌ Error getting database stats: {e}")
+            logging.error(f"❌ Unexpected error getting database stats: {e}", exc_info=True)
             return {
                 "total_jobs": 0,
                 "active_jobs": 0,
@@ -299,8 +323,11 @@ class JobSearchStorage:
                     results.append(job)
                 
                 return results
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
+            return []
         except Exception as e:
-            print(f"❌ Error getting filtered jobs: {e}")
+            logging.error(f"❌ Unexpected error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
             return []
     
     def delete_job(self, job_id):
@@ -308,16 +335,28 @@ class JobSearchStorage:
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
-                return cursor.rowcount > 0
+                deleted_count = cursor.rowcount
+                if deleted_count > 0:
+                    logging.info(f"✅ Successfully deleted job with ID={job_id}")
+                    return True
+                else:
+                    logging.warning(f"⚠️ No job found with ID={job_id} to delete")
+                    return False
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error deleting job with ID={job_id}: {e}", exc_info=True)
+            return False
         except Exception as e:
-            print(f"❌ Error deleting job: {e}")
+            logging.error(f"❌ Unexpected error deleting job with ID={job_id}: {e}", exc_info=True)
             return False
     
     def close(self):
         """Close database connection"""
-        if self.connection:
-            self.connection.close()
-            print("✅ Database connection closed")
+        try:
+            if self.connection:
+                self.connection.close()
+                logging.info("✅ Database connection closed")
+        except Exception as e:
+            logging.error(f"❌ Error closing database connection: {e}", exc_info=True)
 
 # Database configuration
 DB_CONFIG = {
@@ -330,34 +369,16 @@ DB_CONFIG = {
 
 # Usage example
 if __name__ == "__main__":
-    storage = JobSearchStorage(DB_CONFIG)
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     
-    # Example search query
-    search_query = {
-        "keywords": ["python", "remote"],
-        "location": "remote",
-        "job_type": "full-time"
-    }
-    
-    # Example job results
-    sample_jobs = [
-        {
-            "company": "TechCorp",
-            "role": "Senior Python Developer",
-            "tech_stack": ["Python", "Django", "PostgreSQL"],
-            "job_type": "Full-time",
-            "salary": "$120k-$150k",
-            "location": "Remote",
-            "description": "We are looking for a senior Python developer...",
-            "requirements": {"experience": "5+ years", "skills": ["Python", "Django"]},
-            "benefits": {"health": "Full coverage", "pto": "Unlimited"},
-            "source_platform": "RemoteOK",
-            "source_url": "https://remoteok.com/12345",
-            "posted_date": "2024-01-15",
-            "keywords": ["python", "remote", "senior"]
-        }
-    ]
-    
-    # Store results
-    storage.store_search_results(search_query, sample_jobs)
-    storage.close()
+    try:
+        storage = JobSearchStorage(DB_CONFIG)
+        logging.info("✅ Job Search Storage initialized successfully")
+    except ValueError as e:
+        logging.error(f"❌ Configuration error: {e}", exc_info=True)
+    except Exception as e:
+        logging.error(f"❌ Initialization failed: {e}", exc_info=True)
