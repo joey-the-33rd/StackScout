@@ -1,6 +1,7 @@
 """
-Job Search Storage System - Fixed Version
+Job Search Storage System - Secure Version
 Automatically stores job search results in the database for future reference
+Security: Replaced hardcoded credentials with environment variables
 Fixed: Proper PostgreSQL array handling and keywords field selection
 """
 
@@ -10,25 +11,42 @@ from datetime import datetime
 import hashlib
 import json
 import logging
+import os
 
-class JobSearchStorageFixed:
-    def __init__(self, db_config):
-        """Initialize database connection"""
-        self.db_config = db_config
+class JobSearchStorageSecure:
+    def __init__(self):
+        """Initialize database connection using environment variables"""
+        self.db_config = self._get_db_config()
         self.connection = None
         self.connect()
     
+    def _get_db_config(self):
+        """Get database configuration from environment variables"""
+        required_vars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_PORT']
+        config = {}
+        
+        for var in required_vars:
+            value = os.environ.get(var)
+            if not value:
+                raise ValueError(f"Missing required environment variable: {var}")
+            key = var.lower().replace('db_', '')
+            if var == 'DB_PORT':
+                try:
+                    value = int(value)
+                except ValueError:
+                    raise ValueError("Environment variable DB_PORT must be an integer")
+            config[key] = value
+        
+        return config
+    
     def connect(self):
-        """Establish database connection"""
+        """Establish database connection with secure error handling"""
         try:
             self.connection = psycopg2.connect(**self.db_config)
             self.connection.autocommit = True
-            logging.info("✅ Connected to job_scraper_db successfully")
-        except psycopg2.Error as e:
-            logging.error(f"❌ Database connection failed: {e}", exc_info=True)
-            raise
-        except Exception as e:
-            logging.error(f"❌ Unexpected error during database connection: {e}", exc_info=True)
+            logging.info("Database connection established successfully")
+        except psycopg2.Error:
+            logging.error("Database connection failed", exc_info=True)
             raise
     
     def parse_postgres_array(self, array_str):
@@ -130,15 +148,12 @@ class JobSearchStorageFixed:
                 
                 return True
                 
-        except psycopg2.Error as e:
-            logging.error(f"❌ PostgreSQL error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
-            return False
         except Exception as e:
-            logging.error(f"❌ Unexpected error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
+            logging.error(f"Error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
             return False
     
     def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status=""):
-        """Get jobs with filtering and pagination - fixed version"""
+        """Get jobs with filtering and pagination - secure version"""
         try:
             with self.connection.cursor() as cursor:
                 query = """
@@ -179,47 +194,19 @@ class JobSearchStorageFixed:
                     results.append(job)
                 
                 return results
-        except psycopg2.Error as e:
-            logging.error(f"❌ PostgreSQL error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
-            return []
         except Exception as e:
-            logging.error(f"❌ Unexpected error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
+            logging.error(f"Error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
             return []
 
-# Database configuration
-DB_CONFIG = {
-    'host': 'localhost',
-    'database': 'job_scraper_db',
-    'user': 'joeythe33rd',
-    'password': '',
-    'port': 5432
-}
-
+# Example usage (for testing):
 if __name__ == "__main__":
-    storage = JobSearchStorageFixed(DB_CONFIG)
+    # Configure logging
     logging.basicConfig(level=logging.INFO)
-    logging.info("✅ Job Search Storage Fixed initialized successfully")
-<environment_details>
-# VSCode Visible Files
-job_search_storage_fixed.py
-
-# VSCode Open Tabs
-enhanced_web_integration.py
-static/js/security_utils.js
-tailwind.config.js
-postcss.config.js
-src/styles/input.css
-templates/enhanced_index.html
-templates/index.html
-package.json
-static/js/db_manager.js
-stackscout_web.py
-display_jobs.py
-templates/database_manager_clean.html
-static/js/database_manager_fixed.js
-.gitignore
-job_search_storage.py
-job_search_storage_fixed.py
-job_search_storage_secure.py
-database_config_specs.md
-</environment_details>
+    
+    try:
+        storage = JobSearchStorageSecure()
+        print("✅ Job Search Storage Secure initialized successfully")
+    except ValueError as e:
+        print(f"❌ Configuration error: {e}")
+    except Exception as e:
+        print(f"❌ Initialization failed: {e}")
