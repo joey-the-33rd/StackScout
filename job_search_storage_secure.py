@@ -29,7 +29,13 @@ class JobSearchStorageSecure:
             value = os.environ.get(var)
             if not value:
                 raise ValueError(f"Missing required environment variable: {var}")
-            config[var.lower().replace('db_', '')] = value
+            key = var.lower().replace('db_', '')
+            if var == 'DB_PORT':
+                try:
+                    value = int(value)
+                except ValueError:
+                    raise ValueError("Environment variable DB_PORT must be an integer")
+            config[key] = value
         
         return config
     
@@ -39,8 +45,8 @@ class JobSearchStorageSecure:
             self.connection = psycopg2.connect(**self.db_config)
             self.connection.autocommit = True
             logging.info("Database connection established successfully")
-        except psycopg2.Error as e:
-            logging.error(f"Database connection failed: {e}", exc_info=True)
+        except psycopg2.Error:
+            logging.error("Database connection failed", exc_info=True)
             raise
     
     def parse_postgres_array(self, array_str):

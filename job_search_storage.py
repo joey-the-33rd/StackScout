@@ -177,18 +177,23 @@ class JobSearchStorage:
             return hashlib.md5(hash_input.encode()).hexdigest()
         except Exception as e:
             logging.error(f"❌ Error generating job hash: {e}", exc_info=True)
-            return None
+            return ""
     
     def store_search_context(self, source_url, search_query):
         """Store search context for analytics"""
         try:
+            normalized_url = (source_url or "").strip()
+            if not normalized_url:
+                logging.warning("⚠️ Skipping search context insert: empty source_url")
+                return
+            
             with self.connection.cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO search_history (source_url, search_query, search_date)
                     VALUES (%s, %s, %s)
                     ON CONFLICT (source_url, search_query) DO UPDATE SET
                         search_date = EXCLUDED.search_date
-                """, (source_url, json.dumps(search_query), datetime.now()))
+                """, (normalized_url, json.dumps(search_query), datetime.now()))
         except psycopg2.Error as e:
             logging.error(f"❌ PostgreSQL error storing search context for URL={source_url}: {e}", exc_info=True)
         except Exception as e:
@@ -284,6 +289,13 @@ class JobSearchStorage:
         """Get jobs with filtering and pagination"""
         try:
             with self.connection.cursor() as cursor:
+                # sanitize pagination inputs
+                try:
+                    limit = max(1, min(int(limit), 1000))
+                    offset = max(0, int(offset))
+                except (ValueError, TypeError):
+                    limit, offset = 100, 0
+                
                 query = """
                     SELECT id, company, role, tech_stack, job_type, salary, location,
                            description, source_platform, source_url, posted_date,
