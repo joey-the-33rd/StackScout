@@ -263,7 +263,7 @@ class JobSearchStorage:
                 query = """
                     SELECT id, company, role, tech_stack, job_type, salary, location,
                            description, source_platform, source_url, posted_date,
-                           scraped_date, is_active
+                           scraped_date, is_active, keywords
                     FROM jobs
                     WHERE 1=1
                 """
