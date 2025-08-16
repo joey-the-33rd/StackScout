@@ -23,9 +23,12 @@ class JobSearchStorageFixed:
         try:
             self.connection = psycopg2.connect(**self.db_config)
             self.connection.autocommit = True
-            print("✅ Connected to job_scraper_db successfully")
+            logging.info("✅ Connected to job_scraper_db successfully")
+        except psycopg2.Error as e:
+            logging.error(f"❌ Database connection failed: {e}", exc_info=True)
+            raise
         except Exception as e:
-            print(f"❌ Database connection failed: {e}")
+            logging.error(f"❌ Unexpected error during database connection: {e}", exc_info=True)
             raise
     
     def parse_postgres_array(self, array_str):
@@ -57,7 +60,8 @@ class JobSearchStorageFixed:
                 # Clean up items
                 items = [item.strip() for item in items if item.strip()]
                 return items
-            except:
+            except Exception as e:
+                logging.warning(f"Failed to parse PostgreSQL array format: {e}. Falling back to simple split.", exc_info=True)
                 # Fallback to simple split if CSV parsing fails
                 return [item.strip().strip('"') for item in array_str.split(',') if item.strip()]
         
@@ -126,8 +130,11 @@ class JobSearchStorageFixed:
                 
                 return True
                 
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
+            return False
         except Exception as e:
-            print(f"❌ Error storing job: {e}")
+            logging.error(f"❌ Unexpected error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
             return False
     
     def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status=""):
@@ -172,8 +179,11 @@ class JobSearchStorageFixed:
                     results.append(job)
                 
                 return results
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
+            return []
         except Exception as e:
-            print(f"❌ Error getting filtered jobs: {e}")
+            logging.error(f"❌ Unexpected error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
             return []
 
 # Database configuration
@@ -187,4 +197,29 @@ DB_CONFIG = {
 
 if __name__ == "__main__":
     storage = JobSearchStorageFixed(DB_CONFIG)
-    print("✅ Job Search Storage Fixed initialized successfully")
+    logging.basicConfig(level=logging.INFO)
+    logging.info("✅ Job Search Storage Fixed initialized successfully")
+<environment_details>
+# VSCode Visible Files
+job_search_storage_fixed.py
+
+# VSCode Open Tabs
+enhanced_web_integration.py
+static/js/security_utils.js
+tailwind.config.js
+postcss.config.js
+src/styles/input.css
+templates/enhanced_index.html
+templates/index.html
+package.json
+static/js/db_manager.js
+stackscout_web.py
+display_jobs.py
+templates/database_manager_clean.html
+static/js/database_manager_fixed.js
+.gitignore
+job_search_storage.py
+job_search_storage_fixed.py
+job_search_storage_secure.py
+database_config_specs.md
+</environment_details>
