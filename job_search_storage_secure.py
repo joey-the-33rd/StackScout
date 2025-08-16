@@ -40,7 +40,7 @@ class JobSearchStorageSecure:
             self.connection.autocommit = True
             logging.info("Database connection established successfully")
         except psycopg2.Error as e:
-            logging.error("Database connection failed")
+            logging.error(f"Database connection failed: {e}", exc_info=True)
             raise
     
     def parse_postgres_array(self, array_str):
@@ -72,7 +72,8 @@ class JobSearchStorageSecure:
                 # Clean up items
                 items = [item.strip() for item in items if item.strip()]
                 return items
-            except:
+            except Exception as e:
+                logging.warning(f"Failed to parse PostgreSQL array format: {e}. Falling back to simple split.", exc_info=True)
                 # Fallback to simple split if CSV parsing fails
                 return [item.strip().strip('"') for item in array_str.split(',') if item.strip()]
         
@@ -142,7 +143,7 @@ class JobSearchStorageSecure:
                 return True
                 
         except Exception as e:
-            logging.error("Error storing job")
+            logging.error(f"Error storing job for company={job_data.get('company', 'unknown')}, role={job_data.get('role', 'unknown')}: {e}", exc_info=True)
             return False
     
     def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status=""):
@@ -188,7 +189,7 @@ class JobSearchStorageSecure:
                 
                 return results
         except Exception as e:
-            logging.error("Error getting filtered jobs")
+            logging.error(f"Error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
             return []
 
 # Example usage (for testing):
