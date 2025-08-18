@@ -7,10 +7,21 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
+import json
 from pydantic import BaseModel
 
 from enhanced_scraper import EnhancedJobScraper
 from job_search_storage import JobSearchStorage, DB_CONFIG
+
+# Import AI generators
+from src.ai_generators.resume_generator import ResumeGenerator
+from src.ai_generators.cover_letter_generator import CoverLetterGenerator
+from src.ai_generators.cv_tailor import CVTailor
+from src.ai_generators.email_generator import EmailGenerator
+from src.models.user_profile import (
+    UserProfile, ResumeRequest, CoverLetterRequest, 
+    CVTailorRequest, EmailRequest
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -194,6 +205,165 @@ def apple_touch_icon():
     )
     png_bytes = base64.b64decode(transparent_png_base64)
     return HTMLResponse(content=png_bytes, media_type="image/png")
+
+# AI Generator API Endpoints
+@app.post("/api/generate-resume")
+async def generate_resume(request: ResumeRequest):
+    """Generate a resume based on user profile."""
+    try:
+        generator = ResumeGenerator()
+        
+        # In a real implementation, fetch user profile from database
+        # For now, use mock data
+        user_profile = {
+            "full_name": "John Doe",
+            "title": "Senior Software Engineer",
+            "years_experience": 5,
+            "skills": ["Python", "JavaScript", "React", "Node.js", "AWS", "Docker"],
+            "experience": [
+                {
+                    "title": "Senior Software Engineer",
+                    "company": "Tech Corp",
+                    "duration": "2021-2024",
+                    "description": "Led development of scalable web applications",
+                    "achievements": ["Reduced load time by 40%", "Led team of 5 developers"]
+                }
+            ],
+            "education": [
+                {
+                    "degree": "Bachelor of Computer Science",
+                    "institution": "University of Technology",
+                    "year": "2019"
+                }
+            ],
+            "projects": [
+                {
+                    "name": "E-commerce Platform",
+                    "technologies": ["React", "Node.js", "MongoDB"],
+                    "description": "Full-stack e-commerce solution",
+                    "impact": "Increased sales by 25%"
+                }
+            ]
+        }
+        
+        resume = generator.generate_resume(user_profile, request.template_type)
+        return JSONResponse(content={"resume": resume})
+        
+    except Exception as e:
+        logger.error(f"Resume generation failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.post("/api/generate-cover-letter")
+async def generate_cover_letter(request: CoverLetterRequest):
+    """Generate a cover letter for a specific job."""
+    try:
+        generator = CoverLetterGenerator()
+        
+        # Mock user profile
+        user_profile = {
+            "full_name": "John Doe",
+            "title": "Senior Software Engineer",
+            "years_experience": 5,
+            "skills": ["Python", "JavaScript", "React", "Node.js", "AWS", "Docker"]
+        }
+        
+        cover_letter = generator.generate_cover_letter(
+            user_profile=user_profile,
+            job_details={
+                "title": request.job_title,
+                "description": request.job_description,
+                "company": request.company_name
+            },
+            company_info={
+                "name": request.company_name,
+                "description": request.company_info.get("description", "")
+            }
+        )
+        
+        return JSONResponse(content={"cover_letter": cover_letter})
+        
+    except Exception as e:
+        logger.error(f"Cover letter generation failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.post("/api/tailor-cv")
+async def tailor_cv(request: CVTailorRequest):
+    """Tailor a CV for a specific job posting."""
+    try:
+        tailor = CVTailor()
+        
+        tailored_cv = tailor.tailor_cv(
+            base_resume=request.base_resume,
+            job_description=request.job_description
+        )
+        
+        return JSONResponse(content={"tailored_cv": tailored_cv})
+        
+    except Exception as e:
+        logger.error(f"CV tailoring failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.post("/api/generate-email")
+async def generate_email(request: EmailRequest):
+    """Generate a follow-up email."""
+    try:
+        generator = EmailGenerator()
+        
+        # Mock user profile
+        user_profile = {
+            "full_name": "John Doe",
+            "email": "john.doe@email.com"
+        }
+        
+        email = generator.generate_follow_up_email(
+            user_profile=user_profile,
+            job_details={
+                "title": request.job_title,
+                "company": request.company_name
+            },
+            email_type=request.email_type,
+            context=request.context
+        )
+        
+        return JSONResponse(content={"email": email})
+        
+    except Exception as e:
+        logger.error(f"Email generation failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/api/ai-tools")
+async def get_ai_tools():
+    """Get available AI tools and their status."""
+    return JSONResponse(content={
+        "tools": [
+            {
+                "name": "Resume Generator",
+                "endpoint": "/api/generate-resume",
+                "description": "Generate professional resumes from user profile"
+            },
+            {
+                "name": "Cover Letter Generator",
+                "endpoint": "/api/generate-cover-letter",
+                "description": "Generate job-specific cover letters"
+            },
+            {
+                "name": "CV Tailor",
+                "endpoint": "/api/tailor-cv",
+                "description": "Tailor CV for specific job postings"
+            },
+            {
+                "name": "Email Generator",
+                "endpoint": "/api/generate-email",
+                "description": "Generate follow-up emails"
+            }
+        ],
+        "status": "active"
+    })
+
+@app.get("/ai-tools", response_class=HTMLResponse)
+def ai_tools_page(request: Request):
+    """Serve the AI tools page."""
+    return templates.TemplateResponse("ai_tools.html", {"request": request})
 
 if __name__ == "__main__":
     import uvicorn
