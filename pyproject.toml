@@ -26,4 +26,6 @@ dependencies = [
     "sqlalchemy>=2.0.42",
     "psycopg2-binary>=2.9.10",
     "psycopg2>=2.9.10",
+    "google-generativeai>=0.8.5",
+    "email-validator>=2.2.0",
 ]
