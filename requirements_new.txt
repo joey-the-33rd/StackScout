@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+selenium
+python-dotenv
+jinja2
+requests
+beautifulsoup4
+lxml
+playwright
+google-generativeai
+python-docx
+reportlab
+weasyprint
+pydantic
