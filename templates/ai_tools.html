@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Tools - StackScout</title>
+    <link rel="stylesheet" href="/static/css/output.css">
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50">
+    <div x-data="aiTools()" class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <h1 class="text-2xl font-bold text-gray-900">🤖 AI Tools</h1>
+                    <nav>
+                        <a href="/" class="text-blue-600 hover:text-blue-800">Home</a>
+                        <a href="/database/manager" class="ml-4 text-blue-600 hover:text-blue-800">Database</a>
+                    </nav>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">AI-Powered Job Application Tools</h2>
+                <p class="text-gray-600">Generate resumes, cover letters, and follow-up emails with AI</p>
+            </div>
+
+            <!-- Tools Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Resume Generator -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-4">Resume Generator</h3>
+                    <p class="text-gray-600 mb-4">Create professional resumes tailored to your profile</p>
+                    <button @click="showResumeModal = true" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Generate Resume
+                    </button>
+                </div>
+
+                <!-- Cover Letter Generator -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-4">Cover Letter Generator</h3>
+                    <p class="text-gray-600 mb-4">Create job-specific cover letters</p>
+                    <button @click="showCoverLetterModal = true" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                        Generate Cover Letter
+                    </button>
+                </div>
+
+                <!-- CV Tailor -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-4">CV Tailor</h3>
+                    <p class="text-gray-600 mb-4">Tailor your CV for specific job postings</p>
+                    <button @click="showCVTailorModal = true" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">
+                        Tailor CV
+                    </button>
+                </div>
+
+                <!-- Email Generator -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-semibold mb-4">Email Generator</h3>
+                    <p class="text-gray-600 mb-4">Generate follow-up emails</p>
+                    <button @click="showEmailModal = true" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded">
+                        Generate Email
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resume Modal -->
+            <div x-show="showResumeModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Generate Resume</h3>
+                        <form @submit.prevent="generateResume()">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Template Type</label>
+                                <select x-model="resumeData.template_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="ats_friendly">ATS Friendly</option>
+                                    <option value="creative">Creative</option>
+                                    <option value="minimal">Minimal</option>
+                                </select>
+                            </div>
+                            <div class="flex justify-end space-x-2">
+                                <button type="button" @click="showResumeModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">
+                                    Generate
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cover Letter Modal -->
+            <div x-show="showCoverLetterModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Generate Cover Letter</h3>
+                        <form @submit.prevent="generateCoverLetter()">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Job Title</label>
+                                <input x-model="coverLetterData.job_title" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Company Name</label>
+                                <input x-model="coverLetterData.company_name" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Job Description</label>
+                                <textarea x-model="coverLetterData.job_description" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></textarea>
+                            </div>
+                            <div class="flex justify-end space-x-2">
+                                <button type="button" @click="showCoverLetterModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded">
+                                    Generate
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CV Tailor Modal -->
+            <div x-show="showCVTailorModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Tailor CV for Job</h3>
+                        <form @submit.prevent="tailorCV()">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Job Description</label>
+                                <textarea x-model="cvTailorData.job_description" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></textarea>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Base Resume (JSON)</label>
+                                <textarea x-model="cvTailorData.base_resume" rows="6" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" placeholder='{"summary": "...", "experience": [...]}'></textarea>
+                            </div>
+                            <div class="flex justify-end space-x-2">
+                                <button type="button" @click="showCVTailorModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-4 py-2 bg-purple-600 text-white rounded">
+                                    Tailor CV
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Modal -->
+            <div x-show="showEmailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                    <div class="mt-3">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Generate Follow-up Email</h3>
+                        <form @submit.prevent="generateEmail()">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Email Type</label>
+                                <select x-model="emailData.email_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                                    <option value="thank_you">Thank You</option>
+                                    <option value="application_follow_up">Application Follow-up</option>
+                                    <option value="interview_follow_up">Interview Follow-up</option>
+                                    <option value="status_inquiry">Status Inquiry</option>
+                                </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Job Title</label>
+                                <input x-model="emailData.job_title" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700">Company Name</label>
+                                <input x-model="emailData.company_name" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required>
+                            </div>
+                            <div class="flex justify-end space-x-2">
+                                <button type="button" @click="showEmailModal = false" class="px-4 py-2 bg-gray-300 text-gray-700 rounded">
+                                    Cancel
+                                </button>
+                                <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded">
+                                    Generate
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div x-show="results" class="mt-8">
+                <h3 class="text-xl font-semibold mb-4">Generated Content</h3>
+                <div class="bg-gray-100 p-4 rounded">
+                    <pre x-text="results" class="whitespace-pre-wrap text-sm"></pre>
+                </div>
+                <button @click="copyToClipboard()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded">
+                    Copy to Clipboard
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function aiTools() {
+            return {
+                showResumeModal: false,
+                showCoverLetterModal: false,
+                showCVTailorModal: false,
+                showEmailModal: false,
+                results: null,
+                
+                resumeData: {
+                    template_type: 'ats_friendly'
+                },
+                
+                coverLetterData: {
+                    job_title: '',
+                    company_name: '',
+                    job_description: '',
+                    company_info: {}
+                },
+                
+                cvTailorData: {
+                    job_description: '',
+                    base_resume: ''
+                },
+                
+                emailData: {
+                    email_type: 'thank_you',
+                    job_title: '',
+                    company_name: ''
+                },
+                
+                async generateResume() {
+                    try {
+                        const response = await fetch('/api/generate-resume', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.resumeData)
+                        });
+                        const data = await response.json();
+                        this.results = JSON.stringify(data.resume, null, 2);
+                        this.showResumeModal = false;
+                    } catch (error) {
+                        alert('Failed to generate resume: ' + error.message);
+                    }
+                },
+                
+                async generateCoverLetter() {
+                    try {
+                        const response = await fetch('/api/generate-cover-letter', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.coverLetterData)
+                        });
+                        const data = await response.json();
+                        this.results = JSON.stringify(data.cover_letter, null, 2);
+                        this.showCoverLetterModal = false;
+                    } catch (error) {
+                        alert('Failed to generate cover letter: ' + error.message);
+                    }
+                },
+                
+                async tailorCV() {
+                    try {
+                        const response = await fetch('/api/tailor-cv', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.cvTailorData)
+                        });
+                        const data = await response.json();
+                        this.results = JSON.stringify(data.tailored_cv, null, 2);
+                        this.showCVTailorModal = false;
+                    } catch (error) {
+                        alert('Failed to tailor CV: ' + error.message);
+                    }
+                },
+                
+                async generateEmail() {
+                    try {
+                        const response = await fetch('/api/generate-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.emailData)
+                        });
+                        const data = await response.json();
+                        this.results = JSON.stringify(data.email, null, 2);
+                        this.showEmailModal = false;
+                    } catch (error) {
+                        alert('Failed to generate email: ' + error.message);
+                    }
+                },
+                
+                copyToClipboard() {
+                    navigator.clipboard.writeText(this.results);
+                    alert('Copied to clipboard!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
