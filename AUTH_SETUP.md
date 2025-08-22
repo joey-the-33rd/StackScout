@@ -48,7 +48,7 @@ python stackscout_web.py
 
 ### Example Usage
 
-#### Register a new user:
+#### Register a new user
 
 ```bash
 curl -X POST http://localhost:8000/auth/register \
@@ -61,7 +61,7 @@ curl -X POST http://localhost:8000/auth/register \
   }'
 ```
 
-#### Login:
+#### Login
 
 ```bash
 curl -X POST http://localhost:8000/auth/login \
@@ -72,7 +72,7 @@ curl -X POST http://localhost:8000/auth/login \
   }'
 ```
 
-#### Get current user:
+#### Get current user
 
 ```bash
 curl -X GET http://localhost:8000/auth/me \
@@ -114,6 +114,7 @@ curl -X GET http://localhost:8000/auth/me \
 ## Testing
 
 Run the test script:
+
 ```bash
 python test_auth.py
 ```
@@ -121,6 +122,7 @@ python test_auth.py
 ## Integration with Existing Features
 
 The authentication system is now integrated with:
+
 - Job search functionality
 - AI generators
 - Database management
