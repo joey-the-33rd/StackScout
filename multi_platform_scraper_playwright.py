@@ -21,73 +21,93 @@ load_dotenv()
 LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
 LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")
 
-async def get_page_content(url, context):
+async def get_page_content(url, context, timeout: int = 60000):
     page = await context.new_page()
-    await page.goto(url)
-    content = await page.content()
-    await page.close()
-    return content
+    try:
+        await page.goto(url, timeout=timeout)
+        content = await page.content()
+        await page.close()
+        return content
+    except Exception as e:
+        await page.close()
+        raise e
 
 import logging
 
 logger = logging.getLogger("stackscout_web")
 
-async def scrape_remoteok(context, keywords: str = "python") -> List[dict]:
+async def scrape_remoteok(context, keywords: str = "python", max_retries: int = 3) -> List[dict]:
     url = f"https://remoteok.com/remote-dev-jobs?search={keywords}"
-    try:
-        content = await get_page_content(url, context)
-        soup = BeautifulSoup(content, "html.parser")
-        jobs: List[dict] = []
-        job_list = soup.find_all("tr", class_="job")[:5]
-        if not job_list:
-            logger.warning("No jobs found on remoteok.com with current selector.")
-        for job in job_list:
-            if isinstance(job, Tag):
-                title = None
-                if hasattr(job, 'get'):
-                    title = job.get("data-position")
-                if not title:
-                    title_tag = job.find("h2") or job.find("h3")
-                    if title_tag and hasattr(title_tag, 'get_text'):
-                        title = title_tag.get_text(strip=True)
-                    else:
-                        title = "N/A"
-                company = None
-                if hasattr(job, 'get'):
-                    company = job.get("data-company")
-                if not company:
-                    company_tag = job.find("h3", class_="company") or job.find("div", class_="company")
-                    if company_tag and hasattr(company_tag, 'get_text'):
-                        company = company_tag.get_text(strip=True)
-                    else:
-                        company = "N/A"
-                data_href = ""
-                if hasattr(job, 'get'):
-                    data_href = job.get("data-href", "")
-                link = "https://remoteok.com" + (str(data_href) if data_href else "")
-                tags = []
-                tag_elements = job.find_all("div", class_="tag")
-                for t in tag_elements:
-                    if hasattr(t, 'text'):
-                        tags.append(t.text)
-                # Add keywords to tech stack if not already present
-                tech_stack_tags = [tag for tag in tags]
-                if keywords and keywords not in ", ".join(tech_stack_tags).lower():
-                    tech_stack_tags.append(keywords)
-                jobs.append({
-                    "Company": company,
-                    "Role": title,
-                    "Tech Stack": ", ".join(tech_stack_tags),
-                    "Type": "Remote",
-                    "Salary": "N/A",
-                    "Contact Person": "N/A",
-                    "Email": "N/A",
-                    "Link": link
-                })
-        return jobs
-    except Exception as e:
-        logger.error(f"Error scraping remoteok.com: {e}")
-        return []
+    
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Attempt {attempt + 1}/{max_retries}: Scraping RemoteOK with keywords: {keywords}")
+            content = await get_page_content(url, context, timeout=60000)
+            soup = BeautifulSoup(content, "html.parser")
+            jobs: List[dict] = []
+            job_list = soup.find_all("tr", class_="job")[:5]
+            
+            if not job_list:
+                logger.warning("No jobs found on remoteok.com with current selector.")
+            
+            for job in job_list:
+                if isinstance(job, Tag):
+                    title = None
+                    if hasattr(job, 'get'):
+                        title = job.get("data-position")
+                    if not title:
+                        title_tag = job.find("h2") or job.find("h3")
+                        if title_tag and hasattr(title_tag, 'get_text'):
+                            title = title_tag.get_text(strip=True)
+                        else:
+                            title = "N/A"
+                    company = None
+                    if hasattr(job, 'get'):
+                        company = job.get("data-company")
+                    if not company:
+                        company_tag = job.find("h3", class_="company") or job.find("div", class_="company")
+                        if company_tag and hasattr(company_tag, 'get_text'):
+                            company = company_tag.get_text(strip=True)
+                        else:
+                            company = "N/A"
+                    data_href = ""
+                    if hasattr(job, 'get'):
+                        data_href = job.get("data-href", "")
+                    link = "https://remoteok.com" + (str(data_href) if data_href else "")
+                    tags = []
+                    tag_elements = job.find_all("div", class_="tag")
+                    for t in tag_elements:
+                        if hasattr(t, 'text'):
+                            tags.append(t.text)
+                    # Add keywords to tech stack if not already present
+                    tech_stack_tags = [tag for tag in tags]
+                    if keywords and keywords not in ", ".join(tech_stack_tags).lower():
+                        tech_stack_tags.append(keywords)
+                    jobs.append({
+                        "Company": company,
+                        "Role": title,
+                        "Tech Stack": ", ".join(tech_stack_tags),
+                        "Type": "Remote",
+                        "Salary": "N/A",
+                        "Contact Person": "N/A",
+                        "Email": "N/A",
+                        "Link": link
+                    })
+            
+            logger.info(f"✅ Successfully scraped {len(jobs)} jobs from RemoteOK on attempt {attempt + 1}")
+            return jobs
+            
+        except Exception as e:
+            logger.error(f"❌ Error scraping remoteok.com (attempt {attempt + 1}/{max_retries}): {e}")
+            
+            # Wait before retrying (exponential backoff)
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4 seconds
+                logger.info(f"⏳ Waiting {wait_time} seconds before retry...")
+                await asyncio.sleep(wait_time)
+    
+    logger.error(f"❌ All {max_retries} attempts failed for RemoteOK scraping")
+    return []
 
 from typing import List, Union, Dict
 
@@ -392,7 +412,10 @@ async def scrape_arkdev(context, keywords: str = "python") -> List[dict]:
             all_links = soup.find_all("a")
             job_cards = []
             for link in all_links:
-                href = link.get("href", "")
+                href = ""
+                if isinstance(link, Tag):
+                    href = link.get("href", "")
+                # If not a Tag, skip or handle differently
                 if href and "/jobs/" in href:
                     job_cards.append(link)
             job_cards = job_cards[:5]

@@ -2,7 +2,7 @@ import os
 import asyncio
 import json
 from datetime import datetime
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -23,12 +23,25 @@ from src.models.user_profile import (
     CVTailorRequest, EmailRequest
 )
 
+# Import authentication
+from src.auth.endpoints import router as auth_router
+from src.auth.dependencies import get_current_user, get_optional_current_user
+
+# Import recommendations
+from src.recommendations.endpoints import router as recommendations_router
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# Include authentication router
+app.include_router(auth_router)
+
+# Include recommendations router
+app.include_router(recommendations_router)
 
 @app.get("/", response_class=HTMLResponse)
 def read_form(request: Request):

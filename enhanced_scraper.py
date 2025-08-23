@@ -16,97 +16,110 @@ class EnhancedJobScraper:
     def __init__(self):
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     
-    async def scrape_remoteok_enhanced(self, keywords: str = "python") -> List[Dict[str, Any]]:
-        """Enhanced RemoteOK scraper with full schema alignment"""
+    async def scrape_remoteok_enhanced(self, keywords: str = "python", max_retries: int = 3) -> List[Dict[str, Any]]:
+        """Enhanced RemoteOK scraper with full schema alignment and retry logic"""
         url = f"https://remoteok.com/remote-dev-jobs?search={keywords}"
         
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(user_agent=self.user_agent)
-            page = await context.new_page()
-            
-            try:
-                await page.goto(url)
-                await page.wait_for_selector("tr.job", timeout=10000)
-                content = await page.content()
+        for attempt in range(max_retries):
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True)
+                context = await browser.new_context(user_agent=self.user_agent)
+                page = await context.new_page()
                 
-                soup = BeautifulSoup(content, "html.parser")
-                jobs = []
+                try:
+                    print(f"Attempt {attempt + 1}/{max_retries}: Scraping RemoteOK with keywords: {keywords}")
+                    await page.goto(url, timeout=60000)  # Increased timeout to 60 seconds
+                    await page.wait_for_selector("tr.job", timeout=15000)
+                    content = await page.content()
+                    
+                    soup = BeautifulSoup(content, "html.parser")
+                    jobs = []
+                    
+                    job_rows = soup.find_all("tr", class_="job")[:10]
+                    
+                    for job in job_rows:
+                        if isinstance(job, Tag):
+                            # Extract basic info
+                            company_raw = job.get("data-company", "")
+                            company = str(company_raw).strip() if company_raw is not None else ""
+                            role_raw = job.get("data-position", "")
+                            role = str(role_raw).strip() if role_raw is not None else ""
+                            
+                            # Extract description
+                            description_div = job.find_next_sibling("tr", class_="expand")
+                            description = ""
+                            if description_div:
+                                desc_content = description_div.find("td", class_="description") if isinstance(description_div, Tag) else None
+                                if desc_content:
+                                    description = desc_content.get_text(strip=True)
+                            
+                            # Extract tags/tech stack
+                            tags = []
+                            tag_elements = job.find_all("div", class_="tag")
+                            for tag in tag_elements:
+                                tag_text = tag.get_text(strip=True)
+                                if tag_text:
+                                    tags.append(tag_text)
+                            
+                            # Extract salary
+                            salary = self.extract_salary(description)
+                            
+                            # Extract location
+                            location = "Remote"  # RemoteOK is primarily remote jobs
+                            
+                            # Extract job type
+                            job_type = self.extract_job_type(description)
+                            
+                            # Extract requirements and benefits
+                            requirements = self.extract_requirements(description)
+                            benefits = self.extract_benefits(description)
+                            
+                            # Source platform
+                            source_platform = "RemoteOK"
+                            
+                            # Source URL
+                            data_href = job.get("data-href", "")
+                            source_url = f"https://remoteok.com{data_href}" if data_href else ""
+                            
+                            # Posted date (approximate)
+                            posted_date = datetime.now()  # RemoteOK doesn't show exact dates
+                            
+                            # Keywords
+                            keywords_list = [kw.strip() for kw in keywords.split(",")]
+                            
+                            jobs.append({
+                                "company": company,
+                                "role": role,
+                                "tech_stack": tags,
+                                "job_type": job_type,
+                                "salary": salary,
+                                "location": location,
+                                "description": description,
+                                "requirements": requirements,
+                                "benefits": benefits,
+                                "source_platform": source_platform,
+                                "source_url": source_url,
+                                "posted_date": posted_date,
+                                "keywords": keywords_list,
+                                "is_active": True
+                            })
+                    
+                    await browser.close()
+                    print(f"✅ Successfully scraped {len(jobs)} jobs from RemoteOK on attempt {attempt + 1}")
+                    return jobs
+                    
+                except Exception as e:
+                    print(f"❌ Error scraping RemoteOK (attempt {attempt + 1}/{max_retries}): {e}")
+                    await browser.close()
+                    
+                    # Wait before retrying (exponential backoff)
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4 seconds
+                        print(f"⏳ Waiting {wait_time} seconds before retry...")
+                        await asyncio.sleep(wait_time)
                 
-                job_rows = soup.find_all("tr", class_="job")[:10]
-                
-                for job in job_rows:
-                    if isinstance(job, Tag):
-                        # Extract basic info
-                        company = job.get("data-company", "").strip()
-                        role = job.get("data-position", "").strip()
-                        
-                        # Extract description
-                        description_div = job.find_next_sibling("tr", class_="expand")
-                        description = ""
-                        if description_div:
-                            desc_content = description_div.find("td", class_="description")
-                            if desc_content:
-                                description = desc_content.get_text(strip=True)
-                        
-                        # Extract tags/tech stack
-                        tags = []
-                        tag_elements = job.find_all("div", class_="tag")
-                        for tag in tag_elements:
-                            tag_text = tag.get_text(strip=True)
-                            if tag_text:
-                                tags.append(tag_text)
-                        
-                        # Extract salary
-                        salary = self.extract_salary(description)
-                        
-                        # Extract location
-                        location = "Remote"  # RemoteOK is primarily remote jobs
-                        
-                        # Extract job type
-                        job_type = self.extract_job_type(description)
-                        
-                        # Extract requirements and benefits
-                        requirements = self.extract_requirements(description)
-                        benefits = self.extract_benefits(description)
-                        
-                        # Source platform
-                        source_platform = "RemoteOK"
-                        
-                        # Source URL
-                        data_href = job.get("data-href", "")
-                        source_url = f"https://remoteok.com{data_href}" if data_href else ""
-                        
-                        # Posted date (approximate)
-                        posted_date = datetime.now()  # RemoteOK doesn't show exact dates
-                        
-                        # Keywords
-                        keywords_list = [kw.strip() for kw in keywords.split(",")]
-                        
-                        jobs.append({
-                            "company": company,
-                            "role": role,
-                            "tech_stack": tags,
-                            "job_type": job_type,
-                            "salary": salary,
-                            "location": location,
-                            "description": description,
-                            "requirements": requirements,
-                            "benefits": benefits,
-                            "source_platform": source_platform,
-                            "source_url": source_url,
-                            "posted_date": posted_date,
-                            "keywords": keywords_list,
-                            "is_active": True
-                        })
-                
-                await browser.close()
-                return jobs
-                
-            except Exception as e:
-                print(f"Error scraping RemoteOK: {e}")
-                await browser.close()
-                return []
+        print(f"❌ All {max_retries} attempts failed for RemoteOK scraping")
+        return []
     
     async def scrape_jobgether_enhanced(self, keywords: str = "python") -> List[Dict[str, Any]]:
         """Enhanced JobGether scraper with concurrent processing for better performance"""
@@ -135,7 +148,10 @@ class EnhancedJobScraper:
                     
                     link_elem = await job_element.query_selector("a[href]")
                     href = await link_elem.get_attribute("href") if link_elem else ""
-                    source_url = f"https://jobgether.com{href}" if href.startswith("/") else href
+                    if href:
+                        source_url = f"https://jobgether.com{href}" if href.startswith("/") else href
+                    else:
+                        source_url = ""
                     
                     if source_url:
                         job_links.append({
@@ -223,7 +239,7 @@ class EnhancedJobScraper:
             
         except Exception as detail_error:
             print(f"Error loading job details for {job_info.get('source_url', 'Unknown')}: {detail_error}")
-            return None
+            return {}
         finally:
             if detail_page:
                 await detail_page.close()
