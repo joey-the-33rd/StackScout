@@ -2,14 +2,15 @@
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Optional
+from typing import Optional, Generator
 from src.auth.security import verify_token
 from src.auth.database import AuthDatabase
 from job_search_storage import DB_CONFIG
 
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
-def get_auth_db() -> AuthDatabase:
+def get_auth_db() -> Generator[AuthDatabase, None, None]:
     """Get authentication database instance."""
     db = AuthDatabase(DB_CONFIG)
     db.connect()
@@ -48,21 +49,17 @@ async def get_current_active_user(
     return current_user
 
 async def get_optional_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(optional_security),
     db: AuthDatabase = Depends(get_auth_db)
 ) -> Optional[dict]:
     """Get current user if authenticated, otherwise None."""
-    if credentials is None:
+    if not credentials:
         return None
-    
     try:
-        token = credentials.credentials
-        payload = verify_token(token)
+        payload = verify_token(credentials.credentials)
         user = db.get_user_by_id(payload["user_id"])
-        
         if user and user["is_active"]:
             return user
     except Exception:
-        pass
-    
+        return None
     return None
