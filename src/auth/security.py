@@ -8,7 +8,10 @@ import os
 from fastapi import HTTPException, status
 
 # Security configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
+_secret_key = os.getenv("SECRET_KEY")
+if not _secret_key or _secret_key == "your-secret-key-change-this-in-production":
+    raise ValueError("A strong SECRET_KEY must be set in the environment.")
+SECRET_KEY: str = str(_secret_key)  # Type annotation ensures it's treated as string
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

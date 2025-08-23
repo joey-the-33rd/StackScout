@@ -32,7 +32,11 @@ pip install python-jose[cryptography] passlib[bcrypt] python-multipart
 psql -d job_scraper_db -f create_users_schema.sql
 ```
 
-### 3. Start the Server
+### 3. Set Environment Variables
+
+- **SECRET_KEY**: A strong secret key must be set in the environment. This key is used for signing JWT tokens and must not be hardcoded in the application.
+
+### 4. Start the Server
 
 ```bash
 python stackscout_web.py
