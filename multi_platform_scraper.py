@@ -13,12 +13,14 @@ import warnings
 import time
 import requests
 import random
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 import os
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
-load_dotenv()
+# Load environment variables from .env file
+# Use find_dotenv() to locate the .env file robustly, and override=True to ensure environment variables are set
+load_dotenv(find_dotenv(), override=True)
 
 LINKEDIN_EMAIL = os.getenv("LINKEDIN_EMAIL")
 LINKEDIN_PASSWORD = os.getenv("LINKEDIN_PASSWORD")

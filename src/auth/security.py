@@ -9,8 +9,8 @@ from fastapi import HTTPException, status
 
 # Security configuration
 _secret_key = os.getenv("SECRET_KEY")
-if not _secret_key or _secret_key == "your-secret-key-change-this-in-production":
-    raise ValueError("A strong SECRET_KEY must be set in the environment.")
+if not _secret_key or _secret_key == "your-secret-key-change-this-in-production" or _secret_key == "":
+    raise ValueError("A strong SECRET_KEY must be set in the environment. Please set it in your .env file or your environment variables.")
 SECRET_KEY: str = str(_secret_key)  # Type annotation ensures it's treated as string
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30

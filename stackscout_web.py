@@ -1,3 +1,9 @@
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables from .env file at the very beginning
+# Use find_dotenv() to locate the .env file robustly, and override=True to ensure environment variables are set
+load_dotenv(find_dotenv(), override=True)
+
 import os
 import asyncio
 import json
@@ -9,7 +15,7 @@ from fastapi.templating import Jinja2Templates
 import logging
 import json
 from pydantic import BaseModel
-
+  
 from enhanced_scraper import EnhancedJobScraper
 from job_search_storage import JobSearchStorage, DB_CONFIG
 
