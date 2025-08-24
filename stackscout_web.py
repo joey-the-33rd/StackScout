@@ -9,7 +9,10 @@ from fastapi.templating import Jinja2Templates
 import logging
 import json
 from pydantic import BaseModel
+from dotenv import load_dotenv
 
+load_dotenv()  # Load environment variables from .env file
+  
 from enhanced_scraper import EnhancedJobScraper
 from job_search_storage import JobSearchStorage, DB_CONFIG
 
