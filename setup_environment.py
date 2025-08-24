@@ -120,7 +120,7 @@ echo 'DATABASE_URL=sqlite:///stackscout.db' >> .env"""
 chmod 600 .env
 
 # Test your configuration:
-python -c "import os; from src.auth.security import SECRET_KEY; print('✅ SECRET_KEY is properly configured')"
+python -c "import os; print('✅ SECRET_KEY is properly configured' if os.getenv('SECRET_KEY') else '❌ SECRET_KEY is not set')"
 """
     
     print(setup_commands)
