@@ -7,9 +7,10 @@ This key should be used as the SECRET_KEY environment variable.
 import secrets
 import sys
 
-def generate_secret_key(length=32):
+def generate_secret_key(target_length=32):
     """Generate a cryptographically secure random secret key."""
-    return secrets.token_urlsafe(length)
+    byte_length = (target_length * 3) // 4 + 1  # Calculate required byte length
+    return secrets.token_urlsafe(byte_length)
 
 def main():
     print("StackScout SECRET_KEY Generator")
@@ -25,7 +26,7 @@ def main():
     print("This key is cryptographically secure and suitable for production use.")
     
     print("\nUsage instructions:")
-    print("1. Copy the SECRET_KEY value above")
+    print("1. Copy the SECRET_KEY value above (you can specify the desired length as an argument)")
     print("2. Add it to your .env file:")
     print("   SECRET_KEY=your_generated_key_here")
     print("3. Or set it as an environment variable:")
