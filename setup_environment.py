@@ -98,19 +98,32 @@ def main():
     print("QUICK SETUP COMMANDS:")
     print("=" * 50)
     
-    print("""
+    env_example_file = Path('.env.example')
+    setup_commands = """
 # Generate a strong SECRET_KEY:
 python generate_secret_key.py
 
-# Create .env file (if it doesn't exist):
-cp .env.example .env
-
+# Create .env file:"""
+    
+    if env_example_file.exists():
+        setup_commands += """
+cp .env.example .env"""
+    else:
+        setup_commands += """
+echo '# StackScout Environment Configuration' > .env
+echo 'SECRET_KEY=your_very_strong_secret_key_here' >> .env
+echo 'GEMINI_API_KEY=your_gemini_api_key_here' >> .env
+echo 'DATABASE_URL=sqlite:///stackscout.db' >> .env"""
+    
+    setup_commands += """
 # Set file permissions (recommended):
 chmod 600 .env
 
 # Test your configuration:
 python -c "import os; from src.auth.security import SECRET_KEY; print('✅ SECRET_KEY is properly configured')"
-""")
+"""
+    
+    print(setup_commands)
     
     print("\nFor detailed instructions, see ENVIRONMENT_SETUP_GUIDE.md")
 
