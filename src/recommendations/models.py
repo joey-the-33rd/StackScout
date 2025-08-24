@@ -1,6 +1,6 @@
 """Recommendation models for StackScout."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict, Any, Union
 from datetime import datetime
 
@@ -15,10 +15,17 @@ class JobRecommendation(BaseModel):
     location: str
     source_platform: str
     source_url: str
-    posted_date: Union[str, datetime]
+    posted_date: str
     match_score: float
     match_reasons: List[str]
     is_saved: bool = False
+
+    @validator('posted_date', pre=True)
+    def convert_datetime_to_string(cls, v):
+        """Convert datetime objects to ISO format strings."""
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return str(v) if v is not None else ""
 
 class RecommendationRequest(BaseModel):
     """Request model for job recommendations."""

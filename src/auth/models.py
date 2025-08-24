@@ -44,7 +44,7 @@ class UserPreferences(BaseModel):
     """User preferences model."""
     notification_enabled: bool = True
     email_notifications: bool = True
-    saved_searches: list = []
+    saved_searches: list = Field(default_factory=list)
 
 class UserUpdate(BaseModel):
     """Model for updating user profile."""
