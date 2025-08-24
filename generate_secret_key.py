@@ -18,7 +18,7 @@ def main():
     
     # Parse command line arguments for target length
     target_length = 32  # Default value
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 1 and sys.argv[1] != "--print":
         try:
             target_length = int(sys.argv[1])
             if target_length < 16:
@@ -29,19 +29,21 @@ def main():
     # Generate a strong secret key
     secret_key = generate_secret_key(target_length)
     
-    print(f"\nGenerated SECRET_KEY:")
-    print(f"SECRET_KEY={secret_key}")
+    show = "--print" in sys.argv
+    if show:
+        print(f"\nGenerated SECRET_KEY:")
+        print(f"SECRET_KEY={secret_key}")
+    else:
+        print("\nGenerated a new SECRET_KEY (hidden). Use --print to display it.")
+        print("To save directly to your shell (use at your own risk):")
+        print("  eval \"$(python generate_secret_key.py --print | sed -n 's/^SECRET_KEY=\\(.*\\)$/export SECRET_KEY=\"\\1\"/p')\"")
     
     print(f"\nLength: {len(secret_key)} characters")
     print("This key is cryptographically secure and suitable for production use.")
     
     print("\nUsage instructions:")
-    print("1. Copy the SECRET_KEY value above (you can specify the desired length as an argument)")
-    print("2. Add it to your .env file:")
-    print("   SECRET_KEY=your_generated_key_here")
-    print("3. Or set it as an environment variable:")
-    print("   export SECRET_KEY='your_generated_key_here'")
-    print("4. Make sure to keep this key secret and secure!")
+    print("1. Run with --print to display the key then copy it securely.")
+    print("2. Add it to your .env file or export it in your shell.")
     
     return secret_key
 
