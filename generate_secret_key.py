@@ -16,8 +16,18 @@ def main():
     print("StackScout SECRET_KEY Generator")
     print("=" * 40)
     
+    # Parse command line arguments for target length
+    target_length = 32  # Default value
+    if len(sys.argv) > 1:
+        try:
+            target_length = int(sys.argv[1])
+            if target_length < 16:
+                print("⚠️  Warning: For security, consider using a longer key (minimum 16 characters recommended)")
+        except ValueError:
+            print(f"⚠️  Warning: Invalid length argument '{sys.argv[1]}'. Using default length of 32 characters.")
+    
     # Generate a strong secret key
-    secret_key = generate_secret_key()
+    secret_key = generate_secret_key(target_length)
     
     print(f"\nGenerated SECRET_KEY:")
     print(f"SECRET_KEY={secret_key}")
