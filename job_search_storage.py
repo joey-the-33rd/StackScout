@@ -318,7 +318,7 @@ class JobSearchStorage:
                     query += " AND job_type = %s"
                     params.append(job_type)
 
-                if salary_range:
+                if salary_range and salary_range.strip():
                     try:
                         # Handle URL encoding issues - replace spaces with +
                         salary_range = salary_range.replace(' ', '+')
