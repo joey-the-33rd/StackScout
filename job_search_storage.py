@@ -285,7 +285,7 @@ class JobSearchStorage:
                 "platform_stats": {}
             }
     
-    def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status=""):
+    def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status="", job_type="", salary_range=""):
         """Get jobs with filtering and pagination"""
         try:
             with self.connection.cursor() as cursor:
@@ -313,6 +313,29 @@ class JobSearchStorage:
                 if platform:
                     query += " AND source_platform = %s"
                     params.append(platform)
+
+                if job_type:
+                    query += " AND job_type = %s"
+                    params.append(job_type)
+
+                if salary_range:
+                    try:
+                        # Handle URL encoding issues - replace spaces with +
+                        salary_range = salary_range.replace(' ', '+')
+                        
+                        if salary_range.endswith('+'):
+                            # Handle ranges like "$150k+"
+                            salary_min = salary_range.replace('+', '').strip()
+                            query += " AND salary >= %s"
+                            params.append(salary_min)
+                        else:
+                            # Handle ranges like "$50k-$70k"
+                            salary_min, salary_max = salary_range.split('-')
+                            query += " AND salary BETWEEN %s AND %s"
+                            params.extend([salary_min.strip(), salary_max.strip()])
+                    except (ValueError, AttributeError):
+                        # Handle invalid salary range format
+                        logging.warning(f"Invalid salary range format: {salary_range}")
                 
                 if status == "active":
                     query += " AND is_active = true"
@@ -334,6 +357,12 @@ class JobSearchStorage:
                         job['keywords'] = job['keywords'].strip('{}').split(',') if job['keywords'] else []
                     results.append(job)
                 
+                # Convert datetime fields to string for JSON serialization
+                for job in results:
+                    if isinstance(job.get('posted_date'), datetime):
+                        job['posted_date'] = job['posted_date'].isoformat()
+                    if isinstance(job.get('scraped_date'), datetime):
+                        job['scraped_date'] = job['scraped_date'].isoformat()
                 return results
         except psycopg2.Error as e:
             logging.error(f"❌ PostgreSQL error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
