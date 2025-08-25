@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
   
 from enhanced_scraper import EnhancedJobScraper
 from job_search_storage import JobSearchStorage, DB_CONFIG
@@ -85,7 +85,8 @@ async def run_job_search(request: Request):
 class SearchRequest(BaseModel):
     keywords: str
     location: str = ""
-    job_type: str = ""
+    job_type: str = Field(default="", description="Type of job (e.g., full-time, part-time)")
+    salary_range: str = Field(default="", description="Salary range (e.g., $50k-$70k)")
 
 def serialize_for_json(obj):
     """Convert non-JSON serializable objects to JSON serializable format"""
@@ -112,7 +113,8 @@ async def api_search(request: SearchRequest):
         search_query = {
             "keywords": request.keywords,
             "location": request.location,
-            "job_type": request.job_type
+            "job_type": request.job_type,
+            "salary_range": request.salary_range
         }
         storage.store_search_results(search_query, serialized_results)
         storage.close()
@@ -184,7 +186,9 @@ async def get_jobs(
     offset: int = 0,
     search: str = "",
     platform: str = "",
-    status: str = ""
+    status: str = "",
+    job_type: str = "",
+    salary_range: str = ""
 ):
     """Get jobs with filtering and pagination"""
     try:
@@ -194,7 +198,9 @@ async def get_jobs(
             offset=offset,
             search=search,
             platform=platform,
-            status=status
+            status=status,
+            job_type=job_type,
+            salary_range=salary_range
         )
         storage.close()
         return JSONResponse(content={"jobs": jobs})
