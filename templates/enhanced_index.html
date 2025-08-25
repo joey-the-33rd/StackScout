@@ -52,6 +52,17 @@
                                 <option value="contract">Contract</option>
                             </select>
                         </div>
+                        <div>
+                            <label for="salary_range" class="block font-semibold mb-1">Salary Range</label>
+                            <select id="salary_range" x-model="salaryRange" class="w-full px-3 py-2 border rounded">
+                                <option value="">Any</option>
+                                <option value="$50k-$70k">$50k-$70k</option>
+                                <option value="$70k-$90k">$70k-$90k</option>
+                                <option value="$90k-$120k">$90k-$120k</option>
+                                <option value="$120k-$150k">$120k-$150k</option>
+                                <option value="$150k+">$150k+</option>
+                            </select>
+                        </div>
                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                             🔍 Search Jobs
                         </button>
@@ -76,6 +87,7 @@
                 keywords: '',
                 location: '',
                 jobType: '',
+                salaryRange: '',
                 results: [],
                 loading: false,
                 
@@ -88,7 +100,8 @@
                             body: JSON.stringify({
                                 keywords: this.keywords,
                                 location: this.location,
-                                job_type: this.jobType
+                                job_type: this.jobType,
+                                salary_range: this.salaryRange
                             })
                         });
                         const data = await response.json();
