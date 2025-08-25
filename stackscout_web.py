@@ -100,8 +100,29 @@ def serialize_for_json(obj):
 
 @app.post("/api/search")
 async def api_search(request: SearchRequest):
-    """API endpoint for job search"""
+    """API endpoint for job search with enhanced filtering"""
     try:
+        # First try to get filtered results from database
+        storage = JobSearchStorage(DB_CONFIG)
+        filtered_jobs = storage.get_jobs_filtered(
+            limit=100,
+            offset=0,
+            search=request.keywords,
+            job_type=request.job_type,
+            salary_range=request.salary_range
+        )
+        
+        # If we have filtered results, return them
+        if filtered_jobs:
+            storage.close()
+            return JSONResponse(content={"results": filtered_jobs})
+        
+        # If no filtered results but we have specific filters, don't scrape
+        if request.job_type or request.salary_range:
+            storage.close()
+            return JSONResponse(content={"results": []})
+        
+        # If no filters specified, scrape new jobs
         scraper = EnhancedJobScraper()
         results = await scraper.scrape_all_platforms(request.keywords)
         
@@ -109,7 +130,6 @@ async def api_search(request: SearchRequest):
         serialized_results = [serialize_for_json(job) for job in results]
         
         # Store results in database
-        storage = JobSearchStorage(DB_CONFIG)
         search_query = {
             "keywords": request.keywords,
             "location": request.location,
