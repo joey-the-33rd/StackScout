@@ -320,22 +320,32 @@ class JobSearchStorage:
 
                 if salary_range and salary_range.strip():
                     try:
-                        # Handle URL encoding issues - replace spaces with +
-                        salary_range = salary_range.replace(' ', '+')
+                        sr = salary_range.strip().replace(' ', '')
+                        def parse_amount(val: str) -> int:
+                            v = val.lower().replace('$', '').replace(',', '')
+                            if v.endswith('+'):
+                                v = v[:-1]
+                            multiplier = 1000 if v.endswith('k') else 1
+                            if v.endswith('k'):
+                                v = v[:-1]
+                            return int(float(v) * multiplier)
                         
-                        if salary_range.endswith('+'):
-                            # Handle ranges like "$150k+"
-                            salary_min = salary_range.replace('+', '').strip()
+                        if sr.endswith('+'):
+                            salary_min = parse_amount(sr)
                             query += " AND salary >= %s"
                             params.append(salary_min)
                         else:
-                            # Handle ranges like "$50k-$70k"
-                            salary_min, salary_max = salary_range.split('-')
+                            if '-' not in sr:
+                                raise ValueError("Missing '-' in salary range")
+                            min_str, max_str = sr.split('-', 1)
+                            salary_min = parse_amount(min_str)
+                            salary_max = parse_amount(max_str)
+                            if salary_min > salary_max:
+                                salary_min, salary_max = salary_max, salary_min
                             query += " AND salary BETWEEN %s AND %s"
-                            params.extend([salary_min.strip(), salary_max.strip()])
-                    except (ValueError, AttributeError):
-                        # Handle invalid salary range format
-                        logging.warning(f"Invalid salary range format: {salary_range}")
+                            params.extend([salary_min, salary_max])
+                    except Exception:
+                        logging.warning(f"Invalid salary range format: {salary_range}", exc_info=True)
                 
                 if status == "active":
                     query += " AND is_active = true"
