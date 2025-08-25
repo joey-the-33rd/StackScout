@@ -285,7 +285,7 @@ class JobSearchStorage:
                 "platform_stats": {}
             }
     
-    def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status=""):
+    def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status="", job_type="", salary_range=""):
         """Get jobs with filtering and pagination"""
         try:
             with self.connection.cursor() as cursor:
@@ -313,6 +313,39 @@ class JobSearchStorage:
                 if platform:
                     query += " AND source_platform = %s"
                     params.append(platform)
+
+                if job_type:
+                    query += " AND job_type = %s"
+                    params.append(job_type)
+
+                if salary_range and salary_range.strip():
+                    try:
+                        sr = salary_range.strip().replace(' ', '')
+                        def parse_amount(val: str) -> int:
+                            v = val.lower().replace('$', '').replace(',', '')
+                            if v.endswith('+'):
+                                v = v[:-1]
+                            multiplier = 1000 if v.endswith('k') else 1
+                            if v.endswith('k'):
+                                v = v[:-1]
+                            return int(float(v) * multiplier)
+                        
+                        if sr.endswith('+'):
+                            salary_min = parse_amount(sr)
+                            query += " AND salary >= %s"
+                            params.append(salary_min)
+                        else:
+                            if '-' not in sr:
+                                raise ValueError("Missing '-' in salary range")
+                            min_str, max_str = sr.split('-', 1)
+                            salary_min = parse_amount(min_str)
+                            salary_max = parse_amount(max_str)
+                            if salary_min > salary_max:
+                                salary_min, salary_max = salary_max, salary_min
+                            query += " AND salary BETWEEN %s AND %s"
+                            params.extend([salary_min, salary_max])
+                    except Exception:
+                        logging.warning(f"Invalid salary range format: {salary_range}", exc_info=True)
                 
                 if status == "active":
                     query += " AND is_active = true"
@@ -332,8 +365,12 @@ class JobSearchStorage:
                         job['tech_stack'] = job['tech_stack'].strip('{}').split(',') if job['tech_stack'] else []
                     if isinstance(job.get('keywords'), str):
                         job['keywords'] = job['keywords'].strip('{}').split(',') if job['keywords'] else []
+                    # Convert datetime fields to string for JSON serialization
+                    if isinstance(job.get('posted_date'), datetime):
+                        job['posted_date'] = job['posted_date'].isoformat()
+                    if isinstance(job.get('scraped_date'), datetime):
+                        job['scraped_date'] = job['scraped_date'].isoformat()
                     results.append(job)
-                
                 return results
         except psycopg2.Error as e:
             logging.error(f"❌ PostgreSQL error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)

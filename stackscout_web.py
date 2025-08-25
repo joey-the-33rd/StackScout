@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
   
 from enhanced_scraper import EnhancedJobScraper
 from job_search_storage import JobSearchStorage, DB_CONFIG
@@ -85,7 +85,8 @@ async def run_job_search(request: Request):
 class SearchRequest(BaseModel):
     keywords: str
     location: str = ""
-    job_type: str = ""
+    job_type: str = Field(default="", description="Type of job (e.g., full-time, part-time)")
+    salary_range: str = Field(default="", description="Salary range (e.g., $50k-$70k)")
 
 def serialize_for_json(obj):
     """Convert non-JSON serializable objects to JSON serializable format"""
@@ -99,8 +100,28 @@ def serialize_for_json(obj):
 
 @app.post("/api/search")
 async def api_search(request: SearchRequest):
-    """API endpoint for job search"""
+    """API endpoint for job search with enhanced filtering"""
+    storage = None
     try:
+        # First try to get filtered results from database
+        storage = JobSearchStorage(DB_CONFIG)
+        filtered_jobs = storage.get_jobs_filtered(
+            limit=100,
+            offset=0,
+            search=request.keywords,
+            job_type=request.job_type,
+            salary_range=request.salary_range,
+        )
+        
+        # If we have filtered results, return them
+        if filtered_jobs:
+            return JSONResponse(content={"results": filtered_jobs})
+        
+        # If no filtered results but we have specific filters, don't scrape
+        if request.job_type or request.salary_range:
+            return JSONResponse(content={"results": []})
+        
+        # If no filters specified, scrape new jobs
         scraper = EnhancedJobScraper()
         results = await scraper.scrape_all_platforms(request.keywords)
         
@@ -108,21 +129,26 @@ async def api_search(request: SearchRequest):
         serialized_results = [serialize_for_json(job) for job in results]
         
         # Store results in database
-        storage = JobSearchStorage(DB_CONFIG)
         search_query = {
             "keywords": request.keywords,
             "location": request.location,
-            "job_type": request.job_type
+            "job_type": request.job_type,
+            "salary_range": request.salary_range,
         }
         storage.store_search_results(search_query, serialized_results)
-        storage.close()
         
         return JSONResponse(content={"results": serialized_results})
     except Exception as e:
         logger.error(f"API search failed: {e}")
         return JSONResponse(content={"results": [], "error": str(e)}, status_code=500)
+    finally:
+        if storage:
+            try:
+                storage.close()
+            except Exception:
+                logger.warning("Failed to close storage in api_search", exc_info=True)
 
-@app.post("/api/jobs/save")
+
 async def api_save_job(request: Request):
     """API endpoint to save a job"""
     try:
@@ -184,7 +210,9 @@ async def get_jobs(
     offset: int = 0,
     search: str = "",
     platform: str = "",
-    status: str = ""
+    status: str = "",
+    job_type: str = "",
+    salary_range: str = ""
 ):
     """Get jobs with filtering and pagination"""
     try:
@@ -194,7 +222,9 @@ async def get_jobs(
             offset=offset,
             search=search,
             platform=platform,
-            status=status
+            status=status,
+            job_type=job_type,
+            salary_range=salary_range
         )
         storage.close()
         return JSONResponse(content={"jobs": jobs})
@@ -295,7 +325,7 @@ async def generate_cover_letter(request: CoverLetterRequest):
             },
             company_info={
                 "name": request.company_name,
-                "description": request.company_info.get("description", "")
+                "description": request.company_info.get("description", "") if request.company_info else ""
             }
         )
         
