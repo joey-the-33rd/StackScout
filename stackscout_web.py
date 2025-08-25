@@ -101,6 +101,7 @@ def serialize_for_json(obj):
 @app.post("/api/search")
 async def api_search(request: SearchRequest):
     """API endpoint for job search with enhanced filtering"""
+    storage = None
     try:
         # First try to get filtered results from database
         storage = JobSearchStorage(DB_CONFIG)
@@ -109,17 +110,15 @@ async def api_search(request: SearchRequest):
             offset=0,
             search=request.keywords,
             job_type=request.job_type,
-            salary_range=request.salary_range
+            salary_range=request.salary_range,
         )
         
         # If we have filtered results, return them
         if filtered_jobs:
-            storage.close()
             return JSONResponse(content={"results": filtered_jobs})
         
         # If no filtered results but we have specific filters, don't scrape
         if request.job_type or request.salary_range:
-            storage.close()
             return JSONResponse(content={"results": []})
         
         # If no filters specified, scrape new jobs
@@ -134,17 +133,22 @@ async def api_search(request: SearchRequest):
             "keywords": request.keywords,
             "location": request.location,
             "job_type": request.job_type,
-            "salary_range": request.salary_range
+            "salary_range": request.salary_range,
         }
         storage.store_search_results(search_query, serialized_results)
-        storage.close()
         
         return JSONResponse(content={"results": serialized_results})
     except Exception as e:
         logger.error(f"API search failed: {e}")
         return JSONResponse(content={"results": [], "error": str(e)}, status_code=500)
+    finally:
+        if storage:
+            try:
+                storage.close()
+            except Exception:
+                logger.warning("Failed to close storage in api_search", exc_info=True)
 
-@app.post("/api/jobs/save")
+
 async def api_save_job(request: Request):
     """API endpoint to save a job"""
     try:
@@ -321,7 +325,7 @@ async def generate_cover_letter(request: CoverLetterRequest):
             },
             company_info={
                 "name": request.company_name,
-                "description": request.company_info.get("description", "")
+                "description": request.company_info.get("description", "") if request.company_info else ""
             }
         )
         
