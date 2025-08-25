@@ -365,14 +365,12 @@ class JobSearchStorage:
                         job['tech_stack'] = job['tech_stack'].strip('{}').split(',') if job['tech_stack'] else []
                     if isinstance(job.get('keywords'), str):
                         job['keywords'] = job['keywords'].strip('{}').split(',') if job['keywords'] else []
-                    results.append(job)
-                
-                # Convert datetime fields to string for JSON serialization
-                for job in results:
+                    # Convert datetime fields to string for JSON serialization
                     if isinstance(job.get('posted_date'), datetime):
                         job['posted_date'] = job['posted_date'].isoformat()
                     if isinstance(job.get('scraped_date'), datetime):
                         job['scraped_date'] = job['scraped_date'].isoformat()
+                    results.append(job)
                 return results
         except psycopg2.Error as e:
             logging.error(f"❌ PostgreSQL error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
