@@ -321,31 +321,29 @@ class JobSearchStorage:
                 if salary_range and salary_range.strip():
                     try:
                         sr = salary_range.strip().replace(' ', '')
-                        def parse_amount(val: str) -> int:
-                            v = val.lower().replace('$', '').replace(',', '')
-                            if v.endswith('+'):
-                                v = v[:-1]
-                            multiplier = 1000 if v.endswith('k') else 1
-                            if v.endswith('k'):
-                                v = v[:-1]
-                            return int(float(v) * multiplier)
+                        logging.info(f"Salary range filter applied: {sr}")
                         
                         if sr.endswith('+'):
-                            salary_min = parse_amount(sr)
-                            query += " AND salary >= %s"
-                            params.append(salary_min)
-                        else:
-                            if '-' not in sr:
-                                raise ValueError("Missing '-' in salary range")
+                            # Handle minimum salary filter (e.g., "100k+")
+                            min_salary_str = sr[:-1].lower()
+                            query += " AND (salary ILIKE %s OR salary ILIKE %s)"
+                            params.extend([f"%{min_salary_str}%", f"%${min_salary_str}%"])
+                        elif '-' in sr:
+                            # Handle range filter (e.g., "100k-200k")
                             min_str, max_str = sr.split('-', 1)
-                            salary_min = parse_amount(min_str)
-                            salary_max = parse_amount(max_str)
-                            if salary_min > salary_max:
-                                salary_min, salary_max = salary_max, salary_min
-                            query += " AND salary BETWEEN %s AND %s"
-                            params.extend([salary_min, salary_max])
-                    except Exception:
-                        logging.warning(f"Invalid salary range format: {salary_range}", exc_info=True)
+                            min_salary_str = min_str.lower()
+                            max_salary_str = max_str.lower()
+                            query += " AND ((salary ILIKE %s AND salary ILIKE %s) OR (salary ILIKE %s AND salary ILIKE %s))"
+                            params.extend([
+                                f"%{min_salary_str}%", f"%{max_salary_str}%",
+                                f"%${min_salary_str}%", f"%${max_salary_str}%"
+                            ])
+                        else:
+                            # Handle exact match filter
+                            query += " AND (salary ILIKE %s OR salary ILIKE %s)"
+                            params.extend([f"%{sr.lower()}%", f"%${sr.lower()}%"])
+                    except Exception as e:
+                        logging.warning(f"Invalid salary range format: {salary_range}, error: {e}", exc_info=True)
                 
                 if status == "active":
                     query += " AND is_active = true"
