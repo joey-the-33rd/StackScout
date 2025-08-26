@@ -15,7 +15,11 @@ class JobSearchStorage:
         """Initialize database connection"""
         self.db_config = db_config
         self.connection = None
-        self.connect()
+        try:
+            self.connect()
+        except Exception as e:
+            logging.error(f"❌ Failed to initialize database connection: {e}", exc_info=True)
+            # Don't raise here, let individual methods handle reconnection
     
     def connect(self):
         """Establish database connection"""
@@ -23,12 +27,15 @@ class JobSearchStorage:
             self.connection = psycopg2.connect(**self.db_config)
             self.connection.autocommit = True
             logging.info("✅ Connected to job_scraper_db successfully")
+            return True
         except psycopg2.Error as e:
             logging.error(f"❌ Database connection failed: {e}", exc_info=True)
-            raise
+            self.connection = None
+            return False
         except Exception as e:
             logging.error(f"❌ Unexpected error during database connection: {e}", exc_info=True)
-            raise
+            self.connection = None
+            return False
     
     def store_search_results(self, search_query, search_results):
         """
@@ -41,6 +48,9 @@ class JobSearchStorage:
         stored_count = 0
         for job in search_results:
             try:
+                if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                    self.connect()
+                    
                 if self.store_job(job, search_query):
                     stored_count += 1
             except Exception as e:
@@ -61,6 +71,9 @@ class JobSearchStorage:
             bool: Success status
         """
         try:
+            if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                self.connect()
+                
             with self.connection.cursor() as cursor:
                 # Generate unique hash for deduplication
                 job_hash = self.generate_job_hash(job_data)
@@ -111,12 +124,19 @@ class JobSearchStorage:
                     logging.warning(f"keywords is not a list after processing: {type(keywords)}. Converting to list.")
                     keywords = [str(keywords)] if keywords is not None else []
                 
+                # Parse salary to extract numeric values and currency
+                salary_text = str(job_data.get('salary', ''))
+                salary_min_numeric, salary_max_numeric, salary_currency = self.parse_salary_for_storage(salary_text)
+                
                 job_record = {
                     'company': str(job_data.get('company', '')),
                     'role': str(job_data.get('role', '')),
                     'tech_stack': tech_stack,
                     'job_type': str(job_data.get('job_type', '')),
-                    'salary': str(job_data.get('salary', '')),
+                    'salary': salary_text,
+                    'salary_min_numeric': salary_min_numeric,
+                    'salary_max_numeric': salary_max_numeric,
+                    'salary_currency': salary_currency,
                     'location': str(job_data.get('location', '')),
                     'description': str(job_data.get('description', '')),
                     'requirements': Json(job_data.get('requirements', {})),
@@ -131,14 +151,15 @@ class JobSearchStorage:
                 # Insert or update job
                 cursor.execute("""
                     INSERT INTO jobs (
-                        company, role, tech_stack, job_type, salary, location,
-                        description, requirements, benefits, source_platform,
+                        company, role, tech_stack, job_type, salary, salary_min_numeric, salary_max_numeric, salary_currency,
+                        location, description, requirements, benefits, source_platform,
                         source_url, posted_date, keywords, is_active
                     ) VALUES (
                         %(company)s, %(role)s, %(tech_stack)s, %(job_type)s,
-                        %(salary)s, %(location)s, %(description)s,
-                        %(requirements)s, %(benefits)s, %(source_platform)s,
-                        %(source_url)s, %(posted_date)s, %(keywords)s, %(is_active)s
+                        %(salary)s, %(salary_min_numeric)s, %(salary_max_numeric)s, %(salary_currency)s,
+                        %(location)s, %(description)s, %(requirements)s,
+                        %(benefits)s, %(source_platform)s, %(source_url)s,
+                        %(posted_date)s, %(keywords)s, %(is_active)s
                     )
                     ON CONFLICT (source_url) DO UPDATE SET
                         company = EXCLUDED.company,
@@ -146,6 +167,9 @@ class JobSearchStorage:
                         tech_stack = EXCLUDED.tech_stack,
                         job_type = EXCLUDED.job_type,
                         salary = EXCLUDED.salary,
+                        salary_min_numeric = EXCLUDED.salary_min_numeric,
+                        salary_max_numeric = EXCLUDED.salary_max_numeric,
+                        salary_currency = EXCLUDED.salary_currency,
                         location = EXCLUDED.location,
                         description = EXCLUDED.description,
                         requirements = EXCLUDED.requirements,
@@ -178,6 +202,101 @@ class JobSearchStorage:
         except Exception as e:
             logging.error(f"❌ Error generating job hash: {e}", exc_info=True)
             return ""
+
+    def parse_salary_range_for_query(self, salary_range):
+        """Parse salary range string and return numeric min and max values"""
+        if not salary_range:
+            return None, None
+        
+        sr = salary_range.strip().replace(' ', '')
+        
+        try:
+            if sr.endswith('+'):
+                # Handle minimum salary filter (e.g., "100k+")
+                min_str = sr[:-1]
+                min_val = self.parse_salary_amount(min_str)
+                return min_val, None
+            
+            elif '-' in sr:
+                # Handle range filter (e.g., "100k-200k")
+                min_str, max_str = sr.split('-', 1)
+                min_val = self.parse_salary_amount(min_str)
+                max_val = self.parse_salary_amount(max_str)
+                return min_val, max_val
+            
+            else:
+                # Handle exact match filter
+                exact_val = self.parse_salary_amount(sr)
+                return exact_val, exact_val
+                
+        except (ValueError, AttributeError):
+            raise ValueError(f"Invalid salary range format: {salary_range}")
+    
+    def parse_salary_amount(self, amount_str):
+        """Parse a single salary amount string and return numeric value"""
+        if not amount_str:
+            return None
+        
+        # Remove currency symbols and commas
+        clean_str = amount_str.replace('$', '').replace('€', '').replace('£', '').replace(',', '')
+        
+        # Handle 'k' suffix (thousands)
+        if clean_str.lower().endswith('k'):
+            clean_str = clean_str[:-1]
+            multiplier = 1000
+        else:
+            multiplier = 1
+        
+        try:
+            return int(float(clean_str) * multiplier)
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid salary amount: {amount_str}")
+    
+    def parse_salary_for_storage(self, salary_text):
+        """Parse salary text and extract numeric min, max, and currency"""
+        if not salary_text:
+            return None, None, None
+        
+        # Default currency detection
+        currency = None
+        if '$' in salary_text:
+            currency = 'USD'
+        elif '€' in salary_text:
+            currency = 'EUR'
+        elif '£' in salary_text:
+            currency = 'GBP'
+        
+        # Clean the text for parsing
+        clean_text = salary_text.replace(' ', '')
+        
+        try:
+            # Pattern 1: Range format (e.g., "$100k-$150k", "$100,000-$150,000")
+            if '-' in clean_text:
+                parts = clean_text.split('-')
+                if len(parts) == 2:
+                    min_part = parts[0]
+                    max_part = parts[1]
+                    
+                    min_val = self.parse_salary_amount(min_part)
+                    max_val = self.parse_salary_amount(max_part)
+                    return min_val, max_val, currency
+            
+            # Pattern 2: Minimum format (e.g., "$100k+", "$100,000+")
+            elif '+' in clean_text:
+                min_part = clean_text.replace('+', '')
+                min_val = self.parse_salary_amount(min_part)
+                return min_val, None, currency
+            
+            # Pattern 3: Single value (e.g., "$100k", "$100,000")
+            else:
+                single_val = self.parse_salary_amount(clean_text)
+                return single_val, single_val, currency
+                
+        except (ValueError, AttributeError):
+            logging.warning(f"Failed to parse salary text: {salary_text}")
+            return None, None, currency
+        
+        return None, None, currency
     
     def store_search_context(self, source_url, search_query):
         """Store search context for analytics"""
@@ -187,6 +306,11 @@ class JobSearchStorage:
                 logging.warning("⚠️ Skipping search context insert: empty source_url")
                 return
             
+            if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                if not self.connect():
+                    logging.error("❌ Failed to establish database connection for storing search context")
+                    return
+                
             with self.connection.cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO search_history (source_url, search_query, search_date)
@@ -202,6 +326,11 @@ class JobSearchStorage:
     def get_search_history(self, limit=100):
         """Retrieve recent search history"""
         try:
+            if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                if not self.connect():
+                    logging.error("❌ Failed to establish database connection for retrieving search history")
+                    return []
+                
             with self.connection.cursor() as cursor:
                 cursor.execute("""
                     SELECT search_query, search_date, COUNT(*) as job_count
@@ -221,6 +350,17 @@ class JobSearchStorage:
     def get_database_stats(self):
         """Get comprehensive database statistics"""
         try:
+            if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                if not self.connect():
+                    logging.error("❌ Failed to establish database connection for retrieving database stats")
+                    return {
+                        "total_jobs": 0,
+                        "active_jobs": 0,
+                        "week_jobs": 0,
+                        "growth_rate": 0,
+                        "platform_stats": {}
+                    }
+                
             with self.connection.cursor() as cursor:
                 # Total jobs count
                 cursor.execute("SELECT COUNT(*) FROM jobs")
@@ -288,6 +428,11 @@ class JobSearchStorage:
     def get_jobs_filtered(self, limit=100, offset=0, search="", platform="", status="", job_type="", salary_range=""):
         """Get jobs with filtering and pagination"""
         try:
+            if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                if not self.connect():
+                    logging.error("❌ Failed to establish database connection for retrieving jobs")
+                    return []
+                
             with self.connection.cursor() as cursor:
                 # sanitize pagination inputs
                 try:
@@ -297,8 +442,8 @@ class JobSearchStorage:
                     limit, offset = 100, 0
                 
                 query = """
-                    SELECT id, company, role, tech_stack, job_type, salary, location,
-                           description, source_platform, source_url, posted_date,
+                    SELECT id, company, role, tech_stack, job_type, salary, salary_min_numeric, salary_max_numeric, salary_currency,
+                           location, description, source_platform, source_url, posted_date,
                            scraped_date, is_active, keywords
                     FROM jobs
                     WHERE 1=1
@@ -320,30 +465,18 @@ class JobSearchStorage:
 
                 if salary_range and salary_range.strip():
                     try:
-                        sr = salary_range.strip().replace(' ', '')
-                        logging.info(f"Salary range filter applied: {sr}")
-                        
-                        if sr.endswith('+'):
-                            # Handle minimum salary filter (e.g., "100k+")
-                            min_salary_str = sr[:-1].lower()
-                            query += " AND (salary ILIKE %s OR salary ILIKE %s)"
-                            params.extend([f"%{min_salary_str}%", f"%${min_salary_str}%"])
-                        elif '-' in sr:
-                            # Handle range filter (e.g., "100k-200k")
-                            min_str, max_str = sr.split('-', 1)
-                            min_salary_str = min_str.lower()
-                            max_salary_str = max_str.lower()
-                            query += " AND ((salary ILIKE %s AND salary ILIKE %s) OR (salary ILIKE %s AND salary ILIKE %s))"
-                            params.extend([
-                                f"%{min_salary_str}%", f"%{max_salary_str}%",
-                                f"%${min_salary_str}%", f"%${max_salary_str}%"
-                            ])
-                        else:
-                            # Handle exact match filter
-                            query += " AND (salary ILIKE %s OR salary ILIKE %s)"
-                            params.extend([f"%{sr.lower()}%", f"%${sr.lower()}%"])
-                    except Exception as e:
-                        logging.warning(f"Invalid salary range format: {salary_range}, error: {e}", exc_info=True)
+                        min_val, max_val = self.parse_salary_range_for_query(salary_range)
+
+                        if min_val is not None and max_val is not None:
+                            # Query against the numeric range for overlap
+                            query += " AND salary_max_numeric >= %s AND salary_min_numeric <= %s"
+                            params.extend([min_val, max_val])
+                        elif min_val is not None:
+                            # Query for minimum salary
+                            query += " AND salary_max_numeric >= %s"
+                            params.append(min_val)
+                    except ValueError:
+                        logging.warning("Invalid salary format")
                 
                 if status == "active":
                     query += " AND is_active = true"
@@ -380,6 +513,11 @@ class JobSearchStorage:
     def delete_job(self, job_id):
         """Delete a specific job by ID"""
         try:
+            if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                if not self.connect():
+                    logging.error("❌ Failed to establish database connection for deleting job")
+                    return False
+                
             with self.connection.cursor() as cursor:
                 cursor.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
                 deleted_count = cursor.rowcount
