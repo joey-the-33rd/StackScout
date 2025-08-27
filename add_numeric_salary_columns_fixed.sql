@@ -112,9 +112,14 @@ WHERE jobs.id = parsed.id;
 CREATE OR REPLACE FUNCTION update_salary_numeric()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.salary IS DISTINCT FROM OLD.salary THEN
-        SELECT * INTO NEW.salary_min_numeric, NEW.salary_max_numeric, NEW.salary_currency 
+    IF TG_OP = 'INSERT' THEN
+        SELECT * INTO NEW.salary_min_numeric, NEW.salary_max_numeric, NEW.salary_currency
         FROM parse_salary(NEW.salary);
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF NEW.salary IS DISTINCT FROM OLD.salary THEN
+            SELECT * INTO NEW.salary_min_numeric, NEW.salary_max_numeric, NEW.salary_currency
+            FROM parse_salary(NEW.salary);
+        END IF;
     END IF;
     RETURN NEW;
 END;
