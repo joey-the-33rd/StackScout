@@ -241,11 +241,15 @@ class JobSearchStorage:
     
     def parse_salary_amount(self, amount_str):
         """Parse a single salary amount string and return numeric value"""
-        if not amount_str:
-            return None
-        
+        if amount_str is None:
+            raise ValueError("Invalid salary amount: None")
+
+        s = str(amount_str).strip()
+        if s == "":
+            raise ValueError("Invalid salary amount: empty")
+
         # Remove currency symbols and commas
-        clean_str = amount_str.replace('$', '').replace('€', '').replace('£', '').replace(',', '')
+        clean_str = s.replace('$', '').replace('€', '').replace('£', '').replace(',', '')
         
         # Handle 'k' suffix (thousands)
         if clean_str.lower().endswith('k'):
