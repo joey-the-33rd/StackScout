@@ -43,18 +43,18 @@ BEGIN
     -- Clean the text for parsing
     clean_text := REGEXP_REPLACE(salary_text, '[^\d\-\+kK]', '', 'g');
     
-    -- Pattern 1: Range format (e.g., "100k-150k", "100000-150000")
-    IF clean_text ~ '[\d]+[kK]?\-[\d]+[kK]?' THEN
-        matches := REGEXP_MATCHES(clean_text, '([\d]+)[kK]?\-([\d]+)[kK]?');
-        IF array_length(matches, 1) = 2 THEN
+    -- Pattern 1: Range format (e.g., "100k-150k", "100000-150000", "80k-120000")
+    IF clean_text ~ '^\d+[kK]?\-\d+[kK]?$' THEN
+        matches := REGEXP_MATCHES(clean_text, '^(\d+)([kK]?)-(\d+)([kK]?)$');
+        IF array_length(matches, 1) = 4 THEN
             -- Parse min value
             amount := matches[1];
-            multiplier := CASE WHEN clean_text LIKE '%k%' OR clean_text LIKE '%K%' THEN 1000 ELSE 1 END;
+            multiplier := CASE WHEN matches[2] IN ('k','K') THEN 1000 ELSE 1 END;
             min_salary := CAST(amount AS INTEGER) * multiplier;
             
             -- Parse max value
-            amount := matches[2];
-            multiplier := CASE WHEN clean_text LIKE '%k%' OR clean_text LIKE '%K%' THEN 1000 ELSE 1 END;
+            amount := matches[3];
+            multiplier := CASE WHEN matches[4] IN ('k','K') THEN 1000 ELSE 1 END;
             max_salary := CAST(amount AS INTEGER) * multiplier;
             
             RETURN NEXT;
@@ -62,11 +62,11 @@ BEGIN
         END IF;
     
     -- Pattern 2: Minimum format (e.g., "100k+", "100000+")
-    ELSIF clean_text ~ '[\d]+[kK]?\+' THEN
-        matches := REGEXP_MATCHES(clean_text, '([\d]+)[kK]?\+');
-        IF array_length(matches, 1) = 1 THEN
+    ELSIF clean_text ~ '^\d+[kK]?\+$' THEN
+        matches := REGEXP_MATCHES(clean_text, '^(\d+)([kK]?)\+$');
+        IF array_length(matches, 1) = 2 THEN
             amount := matches[1];
-            multiplier := CASE WHEN clean_text LIKE '%k%' OR clean_text LIKE '%K%' THEN 1000 ELSE 1 END;
+            multiplier := CASE WHEN matches[2] IN ('k','K') THEN 1000 ELSE 1 END;
             min_salary := CAST(amount AS INTEGER) * multiplier;
             max_salary := NULL;
             
@@ -75,11 +75,11 @@ BEGIN
         END IF;
     
     -- Pattern 3: Single value (e.g., "100k", "100000")
-    ELSIF clean_text ~ '^[\d]+[kK]?$' THEN
-        matches := REGEXP_MATCHES(clean_text, '([\d]+)[kK]?');
-        IF array_length(matches, 1) = 1 THEN
+    ELSIF clean_text ~ '^\d+[kK]?$' THEN
+        matches := REGEXP_MATCHES(clean_text, '^(\d+)([kK]?)$');
+        IF array_length(matches, 1) = 2 THEN
             amount := matches[1];
-            multiplier := CASE WHEN clean_text LIKE '%k%' OR clean_text LIKE '%K%' THEN 1000 ELSE 1 END;
+            multiplier := CASE WHEN matches[2] IN ('k','K') THEN 1000 ELSE 1 END;
             min_salary := CAST(amount AS INTEGER) * multiplier;
             max_salary := CAST(amount AS INTEGER) * multiplier;
             
