@@ -1,6 +1,6 @@
 # TODO: Strict Amount Parsing Implementation
 
-## Steps to Complete:
+## Steps to Complete
 
 1. [x] Update `parse_salary_amount` method in `job_search_storage.py`:
    - [x] Replace `if not amount_str: return None` with explicit None check that raises ValueError
@@ -15,6 +15,7 @@
 ## Current Status: COMPLETE ✅
 
 The strict amount parsing has been successfully implemented and tested. The method now:
+
 - Raises ValueError for None inputs instead of returning None
 - Raises ValueError for empty or whitespace-only inputs instead of returning None  
 - Strips whitespace before processing
