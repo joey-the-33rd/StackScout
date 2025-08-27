@@ -272,14 +272,15 @@ class JobSearchStorage:
         try:
             # Pattern 1: Range format (e.g., "$100k-$150k", "$100,000-$150,000")
             if '-' in clean_text:
-                parts = clean_text.split('-')
-                if len(parts) == 2:
-                    min_part = parts[0]
-                    max_part = parts[1]
-                    
+                parts = clean_text.split('-', 1)
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    min_part, max_part = parts
                     min_val = self.parse_salary_amount(min_part)
                     max_val = self.parse_salary_amount(max_part)
                     return min_val, max_val, currency
+                else:
+                    logging.warning(f"Incomplete salary range in storage parse: {salary_text}")
+                    return None, None, currency
             
             # Pattern 2: Minimum format (e.g., "$100k+", "$100,000+")
             elif '+' in clean_text:
