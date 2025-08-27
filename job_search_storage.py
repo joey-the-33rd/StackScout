@@ -205,31 +205,38 @@ class JobSearchStorage:
 
     def parse_salary_range_for_query(self, salary_range):
         """Parse salary range string and return numeric min and max values"""
-        if not salary_range:
-            return None, None
-        
-        sr = salary_range.strip().replace(' ', '')
-        
+        if salary_range is None or str(salary_range).strip() == "":
+            raise ValueError("Empty salary filter")
+
+        sr = str(salary_range).strip().replace(' ', '')
+
         try:
             if sr.endswith('+'):
                 # Handle minimum salary filter (e.g., "100k+")
                 min_str = sr[:-1]
+                if min_str == "":
+                    raise ValueError("Missing minimum amount before '+'")
                 min_val = self.parse_salary_amount(min_str)
                 return min_val, None
-            
+
             elif '-' in sr:
                 # Handle range filter (e.g., "100k-200k")
                 min_str, max_str = sr.split('-', 1)
+                if min_str == "" or max_str == "":
+                    raise ValueError("Incomplete salary range")
                 min_val = self.parse_salary_amount(min_str)
                 max_val = self.parse_salary_amount(max_str)
                 return min_val, max_val
-            
+
             else:
                 # Handle exact match filter
                 exact_val = self.parse_salary_amount(sr)
                 return exact_val, exact_val
-                
-        except (ValueError, AttributeError):
+
+        except (ValueError, AttributeError) as e:
+            # Re-raise ValueError as-is to preserve specific messages
+            if isinstance(e, ValueError):
+                raise
             raise ValueError(f"Invalid salary range format: {salary_range}")
     
     def parse_salary_amount(self, amount_str):

@@ -19,7 +19,7 @@ class TestSalaryFilterValidation(unittest.TestCase):
 
     def test_missing_minimum_amount(self):
         with self.assertRaises(ValueError) as context:
-            self.storage.parse_salary_range_for_query("100k+")
+            self.storage.parse_salary_range_for_query("+")
         self.assertEqual(str(context.exception), "Missing minimum amount before '+'")
 
     def test_incomplete_salary_range(self):
