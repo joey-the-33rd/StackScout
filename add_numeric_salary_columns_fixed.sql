@@ -40,48 +40,66 @@ BEGIN
         currency := 'GBP';
     END IF;
 
-    -- Clean the text for parsing
-    clean_text := REGEXP_REPLACE(salary_text, '[^\d\-\+kK]', '', 'g');
+    -- Clean the text for parsing (preserve k/K and m/M for multipliers)
+    clean_text := REGEXP_REPLACE(salary_text, '[^\d\-\+\.,kKmM]', '', 'g');
+    -- Normalize separators
+    clean_text := REPLACE(clean_text, ',', '');
     
-    -- Pattern 1: Range format (e.g., "100k-150k", "100000-150000", "80k-120000")
-    IF clean_text ~ '^\d+[kK]?\-\d+[kK]?$' THEN
-        matches := REGEXP_MATCHES(clean_text, '^(\d+)([kK]?)-(\d+)([kK]?)$');
+    -- Pattern 1: Range format (e.g., "100k-150k", "1M-1.5M", "80k-120000", "1.2m-1.8m")
+    IF clean_text ~ '^(\d+(?:\.\d+)?)([kKmM]?)-(\d+(?:\.\d+)?)([kKmM]?)$' THEN
+        matches := REGEXP_MATCHES(clean_text, '^(\d+(?:\.\d+)?)([kKmM]?)-(\d+(?:\.\d+)?)([kKmM]?)$');
         IF array_length(matches, 1) = 4 THEN
             -- Parse min value
             amount := matches[1];
-            multiplier := CASE WHEN matches[2] IN ('k','K') THEN 1000 ELSE 1 END;
-            min_salary := CAST(amount AS INTEGER) * multiplier;
+            multiplier := CASE 
+                WHEN matches[2] IN ('m','M') THEN 1000000
+                WHEN matches[2] IN ('k','K') THEN 1000
+                ELSE 1 
+            END;
+            min_salary := ROUND(CAST(amount AS NUMERIC) * multiplier)::INTEGER;
             
             -- Parse max value
             amount := matches[3];
-            multiplier := CASE WHEN matches[4] IN ('k','K') THEN 1000 ELSE 1 END;
-            max_salary := CAST(amount AS INTEGER) * multiplier;
+            multiplier := CASE 
+                WHEN matches[4] IN ('m','M') THEN 1000000
+                WHEN matches[4] IN ('k','K') THEN 1000
+                ELSE 1 
+            END;
+            max_salary := ROUND(CAST(amount AS NUMERIC) * multiplier)::INTEGER;
             
             RETURN NEXT;
             RETURN;
         END IF;
     
-    -- Pattern 2: Minimum format (e.g., "100k+", "100000+")
-    ELSIF clean_text ~ '^\d+[kK]?\+$' THEN
-        matches := REGEXP_MATCHES(clean_text, '^(\d+)([kK]?)\+$');
+    -- Pattern 2: Minimum format (e.g., "100k+", "1M+", "100000+")
+    ELSIF clean_text ~ '^(\d+(?:\.\d+)?)([kKmM]?)\+$' THEN
+        matches := REGEXP_MATCHES(clean_text, '^(\d+(?:\.\d+)?)([kKmM]?)\+$');
         IF array_length(matches, 1) = 2 THEN
             amount := matches[1];
-            multiplier := CASE WHEN matches[2] IN ('k','K') THEN 1000 ELSE 1 END;
-            min_salary := CAST(amount AS INTEGER) * multiplier;
+            multiplier := CASE 
+                WHEN matches[2] IN ('m','M') THEN 1000000
+                WHEN matches[2] IN ('k','K') THEN 1000
+                ELSE 1 
+            END;
+            min_salary := ROUND(CAST(amount AS NUMERIC) * multiplier)::INTEGER;
             max_salary := NULL;
             
             RETURN NEXT;
             RETURN;
         END IF;
     
-    -- Pattern 3: Single value (e.g., "100k", "100000")
-    ELSIF clean_text ~ '^\d+[kK]?$' THEN
-        matches := REGEXP_MATCHES(clean_text, '^(\d+)([kK]?)$');
+    -- Pattern 3: Single value (e.g., "100k", "1M", "100000", "1.5m")
+    ELSIF clean_text ~ '^(\d+(?:\.\d+)?)([kKmM]?)$' THEN
+        matches := REGEXP_MATCHES(clean_text, '^(\d+(?:\.\d+)?)([kKmM]?)$');
         IF array_length(matches, 1) = 2 THEN
             amount := matches[1];
-            multiplier := CASE WHEN matches[2] IN ('k','K') THEN 1000 ELSE 1 END;
-            min_salary := CAST(amount AS INTEGER) * multiplier;
-            max_salary := CAST(amount AS INTEGER) * multiplier;
+            multiplier := CASE 
+                WHEN matches[2] IN ('m','M') THEN 1000000
+                WHEN matches[2] IN ('k','K') THEN 1000
+                ELSE 1 
+            END;
+            min_salary := ROUND(CAST(amount AS NUMERIC) * multiplier)::INTEGER;
+            max_salary := ROUND(CAST(amount AS NUMERIC) * multiplier)::INTEGER;
             
             RETURN NEXT;
             RETURN;
