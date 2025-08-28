@@ -416,21 +416,23 @@ async def get_ai_tools():
     })
 
 @app.get("/api/analytics")
-async def get_analytics():
+async def get_analytics(current_user: dict = Depends(get_current_user)):
     """Get all analytics data for the dashboard."""
     try:
         analytics_data = get_all_analytics()
-        logger.info(f"Analytics data retrieved: {analytics_data}")  # Log the retrieved data
-        # Serialize the data to ensure proper JSON formatting
+        logger.info(
+            "Analytics retrieved: jobs_total=%s users_total=%s",
+            analytics_data.get("overall", {}).get("jobs", {}).get("total", 0),
+            analytics_data.get("overall", {}).get("users", {}).get("total", 0)
+        )
         serialized_data = serialize_for_json(analytics_data)
-        # Use the standard JSONResponse which should handle formatting
         return JSONResponse(content=serialized_data)
     except Exception as e:
         logger.error(f"Analytics data retrieval failed: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.get("/analytics", response_class=HTMLResponse)
-def analytics_dashboard(request: Request):
+def analytics_dashboard(request: Request, current_user: dict = Depends(get_current_user)):
     """Serve the analytics dashboard page."""
     return templates.TemplateResponse("analytics_dashboard.html", {"request": request})
 
