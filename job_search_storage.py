@@ -244,19 +244,23 @@ class JobSearchStorage:
         if amount_str is None:
             raise ValueError("Invalid salary amount: None")
 
-        s = str(amount_str).strip()
-        if s == "":
+        # Normalize input - strip whitespace and remove plus signs
+        clean_str = str(amount_str).strip().replace('+', '')
+        if clean_str == "":
             raise ValueError("Invalid salary amount: empty")
 
         # Remove currency symbols and commas
-        clean_str = s.replace('$', '').replace('€', '').replace('£', '').replace(',', '')
+        clean_str = clean_str.replace('$', '').replace('€', '').replace('£', '').replace(',', '')
         
-        # Handle 'k' suffix (thousands)
-        if clean_str.lower().endswith('k'):
+        # Handle suffix multipliers
+        lower = clean_str.lower()
+        multiplier = 1
+        if lower.endswith('k'):
             clean_str = clean_str[:-1]
             multiplier = 1000
-        else:
-            multiplier = 1
+        elif lower.endswith('m'):
+            clean_str = clean_str[:-1]
+            multiplier = 1_000_000
         
         try:
             return int(float(clean_str) * multiplier)
