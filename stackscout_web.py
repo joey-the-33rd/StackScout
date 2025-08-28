@@ -36,6 +36,9 @@ from src.auth.dependencies import get_current_user, get_optional_current_user
 # Import recommendations
 from src.recommendations.endpoints import router as recommendations_router
 
+# Import analytics
+from src.analytics.engine import get_all_analytics
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -93,10 +96,13 @@ def serialize_for_json(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()
     elif isinstance(obj, dict):
-        return {k: serialize_for_json(v) for k, v in obj.items()}
+        return {str(k): serialize_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [serialize_for_json(item) for item in obj]
-    return obj
+    elif isinstance(obj, (int, float, str, bool)) or obj is None:
+        return obj
+    else:
+        return str(obj)
 
 @app.post("/api/search")
 async def api_search(request: SearchRequest):
@@ -408,6 +414,25 @@ async def get_ai_tools():
         ],
         "status": "active"
     })
+
+@app.get("/api/analytics")
+async def get_analytics():
+    """Get all analytics data for the dashboard."""
+    try:
+        analytics_data = get_all_analytics()
+        logger.info(f"Analytics data retrieved: {analytics_data}")  # Log the retrieved data
+        # Serialize the data to ensure proper JSON formatting
+        serialized_data = serialize_for_json(analytics_data)
+        # Use the standard JSONResponse which should handle formatting
+        return JSONResponse(content=serialized_data)
+    except Exception as e:
+        logger.error(f"Analytics data retrieval failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/analytics", response_class=HTMLResponse)
+def analytics_dashboard(request: Request):
+    """Serve the analytics dashboard page."""
+    return templates.TemplateResponse("analytics_dashboard.html", {"request": request})
 
 @app.get("/ai-tools", response_class=HTMLResponse)
 def ai_tools_page(request: Request):
