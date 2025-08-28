@@ -167,11 +167,11 @@ class AnalyticsEngine:
                 # Average interactions per user
                 cursor.execute("""
                     SELECT 
-                        COUNT(uji.id) / COUNT(DISTINCT uji.user_id) as avg_interactions
+                        COALESCE(COUNT(uji.id)::numeric / NULLIF(COUNT(DISTINCT uji.user_id), 0), 0) AS avg_interactions
                     FROM user_job_interactions uji
                 """)
                 result = cursor.fetchone()
-                avg_interactions = result[0] if result and result[0] is not None else 0
+                avg_interactions = float(result[0]) if result and result[0] is not None else 0.0
                 
                 return {
                     "interaction_types": interaction_types,
@@ -377,25 +377,50 @@ class AnalyticsEngine:
 # Convenience functions for API endpoints
 def get_all_analytics() -> Dict[str, Any]:
     """Get all analytics data."""
-    logger.info("Retrieving all analytics data...")  # Log the start of data retrieval
+    logger.info("Retrieving all analytics data...")
     engine = AnalyticsEngine()
     try:
-        overall_stats = engine.get_overall_statistics()
-        logger.info(f"Overall stats retrieved: {overall_stats}")  # Log overall stats
-        user_analytics = engine.get_user_interaction_analytics()
-        logger.info(f"User analytics retrieved: {user_analytics}")  # Log user analytics
-        search_analytics = engine.get_search_pattern_analytics()
-        logger.info(f"Search analytics retrieved: {search_analytics}")  # Log search analytics
-        recommendation_analytics = engine.get_recommendation_performance()
-        logger.info(f"Recommendation analytics retrieved: {recommendation_analytics}")  # Log recommendation analytics
-        
-        analytics_data = {
-            "overall": overall_stats,
-            "user_interactions": user_analytics,
-            "search_patterns": search_analytics,
-            "recommendations": recommendation_analytics
+        defaults = {
+            "overall": {
+                "jobs": {"total": 0, "active": 0, "this_week": 0, "growth_rate": 0.0, "by_platform": {}},
+                "users": {"total": 0, "new_this_week": 0, "active_this_week": 0},
+                "interactions": {"total": 0}
+            },
+            "user_interactions": {
+                "interaction_types": {},
+                "daily_trend": [],
+                "top_users": [],
+                "average_per_user": 0.0
+            },
+            "search_patterns": {
+                "top_keywords": [],
+                "day_of_week": [],
+                "search_trend": [],
+                "job_type_preferences": []
+            },
+            "recommendations": {
+                "effectiveness": [],
+                "top_recommended": [],
+                "score_distribution": []
+            }
         }
-        logger.info(f"Complete analytics data retrieved: {analytics_data}")  # Log complete data
+
+        overall_stats = engine.get_overall_statistics() or {}
+        user_analytics = engine.get_user_interaction_analytics() or {}
+        search_analytics = engine.get_search_pattern_analytics() or {}
+        recommendation_analytics = engine.get_recommendation_performance() or {}
+
+        analytics_data = {
+            "overall": overall_stats if overall_stats else defaults["overall"],
+            "user_interactions": user_analytics if user_analytics else defaults["user_interactions"],
+            "search_patterns": search_analytics if search_analytics else defaults["search_patterns"],
+            "recommendations": recommendation_analytics if recommendation_analytics else defaults["recommendations"]
+        }
+        logger.info(
+            "Analytics assembled: jobs_total=%s users_total=%s",
+            analytics_data["overall"]["jobs"]["total"],
+            analytics_data["overall"]["users"]["total"]
+        )
         return analytics_data
     finally:
         engine.close()
