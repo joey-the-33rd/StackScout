@@ -102,7 +102,7 @@ def serialize_for_json(obj):
     elif isinstance(obj, (int, float, str, bool)) or obj is None:
         return obj
     else:
-        return str(obj)
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 @app.post("/api/search")
 async def api_search(request: SearchRequest):
