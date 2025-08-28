@@ -418,8 +418,8 @@ def get_all_analytics() -> Dict[str, Any]:
         }
         logger.info(
             "Analytics assembled: jobs_total=%s users_total=%s",
-            analytics_data["overall"]["jobs"]["total"],
-            analytics_data["overall"]["users"]["total"]
+            analytics_data.get("overall", {}).get("jobs", {}).get("total", 0),
+            analytics_data.get("overall", {}).get("users", {}).get("total", 0)
         )
         return analytics_data
     finally:
