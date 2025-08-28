@@ -203,11 +203,14 @@
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
 
-            // Update overall statistics
-            document.getElementById('total-jobs').textContent = data.overall.jobs.total.toLocaleString();
-            document.getElementById('active-jobs').textContent = data.overall.jobs.active.toLocaleString();
-            document.getElementById('total-users').textContent = data.overall.users.total.toLocaleString();
-            document.getElementById('growth-rate').textContent = data.overall.jobs.growth_rate + '%';
+            // Update overall statistics with defensive property access
+            const overall = (data && data.overall) || {};
+            const jobs = overall.jobs || {};
+            const users = overall.users || {};
+            document.getElementById('total-jobs').textContent = (jobs.total ?? 0).toLocaleString();
+            document.getElementById('active-jobs').textContent = (jobs.active ?? 0).toLocaleString();
+            document.getElementById('total-users').textContent = (users.total ?? 0).toLocaleString();
+            document.getElementById('growth-rate').textContent = `${jobs.growth_rate ?? 0}%`;
 
             // Update user interactions chart
             updateInteractionsChart(data.user_interactions);
