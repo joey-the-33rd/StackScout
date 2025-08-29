@@ -57,20 +57,23 @@ class AnalyticsEngine:
                     GROUP BY source_platform 
                     ORDER BY COUNT(*) DESC
                 """)
-                platform_stats = dict(cursor.fetchall())
+                platform_stats = [
+                    {"source_platform": row[0], "count": row[1]}
+                    for row in cursor.fetchall()
+                ]
                 
                 # Growth rate (comparing last 7 days to previous 7 days)
                 cursor.execute("""
                     SELECT 
-                        COUNT(CASE WHEN scraped_date >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as recent,
-                        COUNT(CASE WHEN scraped_date >= CURRENT_DATE - INTERVAL '14 days' 
-                                  AND scraped_date < CURRENT_DATE - INTERVAL '7 days' THEN 1 END) as previous
+                        COALESCE(COUNT(CASE WHEN scraped_date >= NOW() - INTERVAL '7 days' THEN 1 END), 0) AS recent,
+                        COALESCE(COUNT(CASE WHEN scraped_date >= NOW() - INTERVAL '14 days'
+                                           AND scraped_date < NOW() - INTERVAL '7 days' THEN 1 END), 0) AS previous
                     FROM jobs
                 """)
-                recent, previous = cursor.fetchone()
-                growth_rate = 0
+                recent, previous = cursor.fetchone() or (0, 0)
+                growth_rate = 0.0
                 if previous > 0:
-                    growth_rate = ((recent - previous) / previous) * 100
+                    growth_rate = ((recent - previous) / previous) * 100.0
                 
                 # User statistics
                 cursor.execute("SELECT COUNT(*) FROM users")
@@ -78,7 +81,7 @@ class AnalyticsEngine:
                 
                 cursor.execute("""
                     SELECT COUNT(*) FROM users 
-                    WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+                    WHERE created_at >= NOW() - INTERVAL '7 days'
                 """)
                 new_users = cursor.fetchone()[0]
                 
@@ -135,16 +138,20 @@ class AnalyticsEngine:
                         DATE(interaction_date) as date,
                         COUNT(*) as count
                     FROM user_job_interactions
-                    WHERE interaction_date >= CURRENT_DATE - INTERVAL '30 days'
+                    WHERE interaction_date >= NOW() - INTERVAL '30 days'
                     GROUP BY DATE(interaction_date)
                     ORDER BY date
                 """)
+                rows = cursor.fetchall()
+                counts_by_date = {row[0]: row[1] for row in rows}
+                from datetime import datetime, timedelta
+                end_date = datetime.utcnow().date()
+                start_date = end_date - timedelta(days=29)
                 daily_trend = []
-                for row in cursor.fetchall():
-                    daily_trend.append({
-                        "date": row[0].isoformat(),
-                        "count": row[1]
-                    })
+                d = start_date
+                while d <= end_date:
+                    daily_trend.append({"date": d.isoformat(), "count": counts_by_date.get(d, 0)})
+                    d += timedelta(days=1)
                 
                 # Top interacting users
                 cursor.execute("""
@@ -219,13 +226,12 @@ class AnalyticsEngine:
                     GROUP BY EXTRACT(DOW FROM search_date)
                     ORDER BY day_of_week
                 """)
-                day_of_week = []
+                day_counts = {int(row[0]): row[1] for row in cursor.fetchall()}
                 day_names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-                for row in cursor.fetchall():
-                    day_of_week.append({
-                        "day": day_names[int(row[0])],
-                        "search_count": row[1]
-                    })
+                day_of_week = [
+                    {"day": day_names[i], "search_count": day_counts.get(i, 0)}
+                    for i in range(7)
+                ]
                 
                 # Search trend over time (last 30 days)
                 cursor.execute("""
@@ -233,7 +239,7 @@ class AnalyticsEngine:
                         DATE(search_date) as date,
                         COUNT(*) as search_count
                     FROM search_history
-                    WHERE search_date >= CURRENT_DATE - INTERVAL '30 days'
+                    WHERE search_date >= NOW() - INTERVAL '30 days'
                     GROUP BY DATE(search_date)
                     ORDER BY date
                 """)
@@ -285,9 +291,9 @@ class AnalyticsEngine:
                     SELECT 
                         uji.interaction_type,
                         COUNT(*) as count,
-                        AVG(jrc.match_score) as avg_match_score
+                        COALESCE(AVG(jrc.match_score), 0) as avg_match_score
                     FROM user_job_interactions uji
-                    JOIN job_recommendation_cache jrc ON uji.job_id = jrc.job_id AND uji.user_id = jrc.user_id
+                    LEFT JOIN job_recommendation_cache jrc ON uji.job_id = jrc.job_id AND uji.user_id = jrc.user_id
                     GROUP BY uji.interaction_type
                 """)
                 recommendation_effectiveness = []
