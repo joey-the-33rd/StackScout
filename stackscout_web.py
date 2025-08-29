@@ -95,14 +95,16 @@ def serialize_for_json(obj):
     """Convert non-JSON serializable objects to JSON serializable format"""
     if isinstance(obj, datetime):
         return obj.isoformat()
-    elif isinstance(obj, dict):
+    from datetime import date as _date  # local import to avoid top-level conflicts
+    if isinstance(obj, _date):
+        return obj.isoformat()
+    if isinstance(obj, dict):
         return {str(k): serialize_for_json(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
+    if isinstance(obj, (list, tuple)):
         return [serialize_for_json(item) for item in obj]
-    elif isinstance(obj, (int, float, str, bool)) or obj is None:
+    if isinstance(obj, (int, float, str, bool)) or obj is None:
         return obj
-    else:
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 @app.post("/api/search")
 async def api_search(request: SearchRequest):
