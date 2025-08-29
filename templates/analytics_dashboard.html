@@ -234,13 +234,18 @@
                 interactionsChart.destroy();
             }
             
+            // Prepare data with defensive checks
+            const interactionTypes = (data && data.interaction_types) || {};
+            const labels = Object.keys(interactionTypes);
+            const values = Object.values(interactionTypes);
+            
             interactionsChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(data.interaction_types),
+                    labels: labels,
                     datasets: [{
                         label: 'Interactions',
-                        data: Object.values(data.interaction_types),
+                        data: values,
                         backgroundColor: [
                             'rgba(54, 162, 235, 0.2)',
                             'rgba(255, 99, 132, 0.2)',
@@ -280,9 +285,10 @@
                 searchTrendsChart.destroy();
             }
             
-            // Prepare data for chart
-            const dates = data.search_trend.map(item => item.date);
-            const counts = data.search_trend.map(item => item.search_count);
+            // Prepare data for chart with defensive checks
+            const searchTrend = (data && data.search_trend) || [];
+            const dates = searchTrend.map(item => (item && item.date) || '');
+            const counts = searchTrend.map(item => (item && item.search_count) || 0);
             
             searchTrendsChart = new Chart(ctx, {
                 type: 'line',

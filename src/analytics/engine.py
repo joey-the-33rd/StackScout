@@ -13,7 +13,7 @@ class AnalyticsEngine:
     
     def __init__(self):
         self.db_config = DB_CONFIG
-        self.connection = None
+        self.connection: Optional[psycopg2.extensions.connection] = None
     
     def connect(self):
         """Establish database connection."""
@@ -37,18 +37,21 @@ class AnalyticsEngine:
             with self.connection.cursor() as cursor:
                 # Total jobs count
                 cursor.execute("SELECT COUNT(*) FROM jobs")
-                total_jobs = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                total_jobs = result[0] if result else 0
                 
                 # Active jobs count
                 cursor.execute("SELECT COUNT(*) FROM jobs WHERE is_active = true")
-                active_jobs = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                active_jobs = result[0] if result else 0
                 
                 # Jobs this week
                 cursor.execute("""
                     SELECT COUNT(*) FROM jobs 
                     WHERE scraped_date >= CURRENT_DATE - INTERVAL '7 days'
                 """)
-                week_jobs = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                week_jobs = result[0] if result else 0
                 
                 # Jobs by platform
                 cursor.execute("""
@@ -77,23 +80,27 @@ class AnalyticsEngine:
                 
                 # User statistics
                 cursor.execute("SELECT COUNT(*) FROM users")
-                total_users = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                total_users = result[0] if result else 0
                 
                 cursor.execute("""
                     SELECT COUNT(*) FROM users 
                     WHERE created_at >= NOW() - INTERVAL '7 days'
                 """)
-                new_users = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                new_users = result[0] if result else 0
                 
                 # Recommendation statistics
                 cursor.execute("SELECT COUNT(*) FROM user_job_interactions")
-                total_interactions = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                total_interactions = result[0] if result else 0
                 
                 cursor.execute("""
                     SELECT COUNT(DISTINCT user_id) FROM user_job_interactions 
                     WHERE interaction_date >= CURRENT_DATE - INTERVAL '7 days'
                 """)
-                active_users = cursor.fetchone()[0]
+                result = cursor.fetchone()
+                active_users = result[0] if result else 0
                 
                 return {
                     "jobs": {
