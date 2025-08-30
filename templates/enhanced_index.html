@@ -6,6 +6,24 @@
     <title>StackScout Enhanced - Remote Dev Jobs</title>
     <link rel="stylesheet" href="/static/css/output.css">
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="/static/js/notification_manager.js" defer></script>
+    <style>
+        .notification-dropdown {
+            max-height: 400px;
+            min-width: 320px;
+        }
+        .notification-item {
+            transition: opacity 0.2s ease;
+        }
+        .notification-item:hover {
+            background-color: #f9fafb !important;
+        }
+        .notification-count {
+            font-size: 10px;
+            min-width: 16px;
+            height: 16px;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
     <div x-data="jobSearch()" class="min-h-screen">
@@ -19,6 +37,7 @@
                         <a href="/ai-tools" class="ml-4 text-blue-600 hover:text-blue-800">AI Tools</a>
                         <a href="/database/manager" class="ml-4 text-blue-600 hover:text-blue-800">Database</a>
                         <a href="/analytics" class="ml-4 text-blue-600 hover:text-blue-800">Analytics</a>
+                        <div id="notification-bell-container" class="inline-block ml-4"></div>
                     </nav>
                 </div>
             </div>

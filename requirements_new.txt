@@ -1,3 +1,4 @@
+
 fastapi
 uvicorn
 selenium
@@ -12,3 +13,4 @@ python-docx
 reportlab
 weasyprint
 pydantic
+sendgrid
