@@ -5,6 +5,12 @@ from typing import Dict, Any, List
 from datetime import datetime
 from src.notifications.database import NotificationsDatabase
 from job_search_storage import DB_CONFIG
+import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email, To, Content
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +20,11 @@ class NotificationService:
     def __init__(self):
         self.db = NotificationsDatabase(DB_CONFIG)
         self.db.connect()
+        self.sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+        if not self.sendgrid_api_key:
+            logger.warning("SENDGRID_API_KEY not set in environment variables")
+        else:
+            self.sg_client = SendGridAPIClient(self.sendgrid_api_key)
     
     def send_notification(self, user_id: int, title: str, message: str) -> bool:
         """Send a notification to a user."""
@@ -41,12 +52,41 @@ class NotificationService:
             return False
     
     def _send_email_notification(self, user_id: int, title: str, message: str) -> bool:
-        """Send email notification (placeholder implementation)."""
-        # In a real implementation, this would integrate with an email service
-        # like SendGrid, Mailgun, or AWS SES
-        logger.info(f"📧 Email notification would be sent to user {user_id}: {title} - {message}")
-        # TODO: Implement actual email sending logic
-        return True
+        """Send email notification using SendGrid."""
+        if not self.sendgrid_api_key:
+            logger.error("SendGrid API key not configured. Cannot send email.")
+            return False
+        
+        try:
+            # Fetch user email from auth database or user service
+            # For now, assume a method self._get_user_email(user_id) exists
+            user_email = self._get_user_email(user_id)
+            if not user_email:
+                logger.error(f"User email not found for user_id {user_id}")
+                return False
+            
+            from_email = Email("no-reply@stackscout.com", "StackScout Notifications")
+            to_email = To(user_email)
+            subject = title
+            content = Content("text/plain", message)
+            mail = Mail(from_email, to_email, subject, content)
+            
+            response = self.sg_client.send(mail)
+            if response.status_code >= 200 and response.status_code < 300:
+                logger.info(f"📧 Email notification sent to {user_email}: {title}")
+                return True
+            else:
+                logger.error(f"Failed to send email notification: {response.status_code} {response.body}")
+                return False
+        except Exception as e:
+            logger.error(f"Exception sending email notification: {e}")
+            return False
+    
+    def _get_user_email(self, user_id: int) -> str:
+        """Fetch user email from auth database."""
+        # This is a placeholder; actual implementation should query user service or database
+        # For now, return a placeholder email for testing
+        return f"user{user_id}@example.com"
     
     def send_job_alert(self, user_id: int, job_data: Dict[str, Any]) -> bool:
         """Send a job alert notification."""
