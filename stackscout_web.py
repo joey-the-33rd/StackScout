@@ -65,6 +65,11 @@ def login_page(request: Request):
     """Serve the login page."""
     return templates.TemplateResponse("login.html", {"request": request})
 
+@app.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    """Serve the registration page."""
+    return templates.TemplateResponse("register.html", {"request": request})
+
 @app.post("/run", response_class=HTMLResponse)
 async def run_job_search(request: Request):
     results = []
