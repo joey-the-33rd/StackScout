@@ -1,7 +1,7 @@
 """FastAPI endpoints for notifications."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from typing import List, Dict
 from src.notifications.models import (
     NotificationCreate, NotificationResponse, NotificationUpdate, NotificationPreferences
 )
@@ -75,3 +75,12 @@ async def update_notification_preferences(
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update preferences")
     return preferences
+
+@router.put("/read-all", response_model=Dict[str, bool])
+async def mark_all_notifications_as_read(
+    current_user: dict = Depends(get_current_user),
+    db: NotificationsDatabase = Depends(get_notifications_db)
+):
+    """Mark all notifications as read for the current user."""
+    success = db.mark_all_as_read(current_user["id"])
+    return {"success": success}
