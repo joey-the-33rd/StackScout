@@ -167,11 +167,17 @@ class NotificationManager {
 
     async markAllAsRead() {
         try {
-            // This would require a new endpoint for batch operations
-            // For now, we'll mark each notification individually
-            const notifications = await this.getNotifications();
-            for (const notification of notifications.filter(n => !n.is_read)) {
-                await this.markAsRead(notification.id);
+            const response = await fetch('/notifications/read-all', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${this.getToken()}`
+                }
+            });
+            
+            if (response.ok) {
+                this.loadNotifications(); // Refresh notifications
+            } else {
+                console.error('Failed to mark all as read:', response.status);
             }
         } catch (error) {
             console.error('Error marking all as read:', error);
