@@ -38,6 +38,12 @@ async def get_notifications(
     offset: int = 0
 ):
     """Get notifications for the current user."""
+    if limit < 1:
+        limit = 1
+    if limit > 100:
+        limit = 100
+    if offset < 0:
+        offset = 0
     notifications = db.get_user_notifications(current_user["id"], limit=limit, offset=offset)
     return notifications
 
