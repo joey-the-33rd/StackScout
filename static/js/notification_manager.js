@@ -108,11 +108,18 @@ class NotificationManager {
                     'Authorization': `Bearer ${this.getToken()}`
                 }
             });
-            
+
             if (response.ok) {
                 const notifications = await response.json();
                 this.renderNotifications(notifications);
                 this.updateNotificationCount(notifications.filter(n => !n.is_read).length);
+            } else if (response.status === 401 || response.status === 403) {
+                // Handle unauthorized or forbidden responses by redirecting to login or clearing token
+                console.warn('Authorization error, redirecting to login.');
+                this.clearToken();
+                window.location.href = '/login';
+            } else {
+                console.error('Failed to load notifications:', response.status);
             }
         } catch (error) {
             console.error('Error loading notifications:', error);
