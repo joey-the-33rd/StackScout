@@ -12,3 +12,4 @@ python-docx
 reportlab
 weasyprint
 pydantic
+sendgrid

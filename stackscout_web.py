@@ -52,9 +52,23 @@ app.include_router(auth_router)
 # Include recommendations router
 app.include_router(recommendations_router)
 
+# Include notifications router
+from src.notifications.endpoints import router as notifications_router
+app.include_router(notifications_router)
+
 @app.get("/", response_class=HTMLResponse)
 def read_form(request: Request):
     return templates.TemplateResponse("enhanced_index.html", {"request": request})
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    """Serve the login page."""
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    """Serve the registration page."""
+    return templates.TemplateResponse("register.html", {"request": request})
 
 @app.post("/run", response_class=HTMLResponse)
 async def run_job_search(request: Request):

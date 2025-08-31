@@ -51,7 +51,12 @@ DATABASE_URL=sqlite:///stackscout.db
 # DB_PASSWORD=your_secure_password
 # DB_PORT=5432
 
-# Optional: Email configuration
+# Optional: Email configuration (choose one option)
+
+# Option 1: SendGrid (recommended)
+# SENDGRID_API_KEY=your_sendgrid_api_key_here
+
+# Option 2: SMTP (alternative)
 # SMTP_SERVER=smtp.gmail.com
 # SMTP_PORT=587
 # SMTP_USERNAME=your_email@gmail.com

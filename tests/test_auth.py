@@ -1,79 +1,88 @@
-#!/usr/bin/env python3
-"""Test script for authentication system."""
+import sys
+import os
+import pytest
+from fastapi.testclient import TestClient
+from dotenv import load_dotenv
 
-import requests
-import json
+# Load .env file explicitly for tests
+load_dotenv()
 
-BASE_URL = "http://localhost:8000"
+# Add project root to sys.path for imports
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-def test_registration():
-    """Test user registration."""
-    print("Testing user registration...")
-    
-    data = {
-        "username": "testuser",
-        "email": "test@example.com",
-        "password": "testpassword123",
+from src.auth.endpoints import router as auth_router
+from fastapi import FastAPI
+
+app = FastAPI()
+app.include_router(auth_router)
+
+client = TestClient(app)
+
+def test_register_and_login():
+    # Test user registration with unique username
+    import uuid
+    unique_username = f"testuser_{uuid.uuid4().hex[:8]}"
+    user_data = {
+        "username": unique_username,
+        "email": f"{unique_username}@example.com",
+        "password": "testpassword",
         "full_name": "Test User"
     }
-    
-    try:
-        response = requests.post(f"{BASE_URL}/auth/register", json=data)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.json()}")
-        return response.json() if response.status_code == 200 else None
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
+    response = client.post("/auth/register", json=user_data)
+    assert response.status_code == 200, f"Registration failed: {response.text}"
+    data = response.json()
+    assert data["username"] == user_data["username"]
+    assert data["email"] == user_data["email"]
+    assert "id" in data
 
-def test_login():
-    """Test user login."""
-    print("\nTesting user login...")
-    
-    data = {
-        "username": "testuser",
-        "password": "testpassword123"
+    # Test login with correct credentials
+    login_data = {
+        "username": unique_username,
+        "password": "testpassword"
     }
-    
-    try:
-        response = requests.post(f"{BASE_URL}/auth/login", json=data)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.json()}")
-        return response.json() if response.status_code == 200 else None
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
+    response = client.post("/auth/login", json=login_data)
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
 
-def test_me_endpoint(token):
-    """Test getting current user info."""
-    print("\nTesting /auth/me endpoint...")
-    
-    headers = {
-        "Authorization": f"Bearer {token}"
+    # Test login with incorrect password
+    login_data_wrong = {
+        "username": unique_username,
+        "password": "wrongpassword"
     }
-    
-    try:
-        response = requests.get(f"{BASE_URL}/auth/me", headers=headers)
-        print(f"Status: {response.status_code}")
-        print(f"Response: {response.json()}")
-    except Exception as e:
-        print(f"Error: {e}")
+    response = client.post("/auth/login", json=login_data_wrong)
+    assert response.status_code == 401
 
-if __name__ == "__main__":
-    print("Authentication System Test")
-    print("=" * 50)
+def test_get_me_without_token():
+    response = client.get("/auth/me")
+    # HTTPBearer returns 403 Forbidden when no credentials are provided
+    assert response.status_code == 403
+
+def test_get_me_with_token():
+    # Register and login to get token
+    import uuid
+    unique_username = f"testuser_{uuid.uuid4().hex[:8]}"
+    user_data = {
+        "username": unique_username,
+        "email": f"{unique_username}@example.com",
+        "password": "testpassword",
+        "full_name": "Test User"
+    }
+    response = client.post("/auth/register", json=user_data)
+    assert response.status_code == 200, f"Registration failed: {response.text}"
     
-    # Start the server first with: python stackscout_web.py
-    
-    # Test registration
-    user = test_registration()
-    
-    # Test login
-    login_response = test_login()
-    
-    if login_response and "access_token" in login_response:
-        token = login_response["access_token"]
-        test_me_endpoint(token)
-    
-    print("\n" + "=" * 50)
-    print("Test completed!")
+    login_data = {
+        "username": unique_username,
+        "password": "testpassword"
+    }
+    response = client.post("/auth/login", json=login_data)
+    assert response.status_code == 200, f"Login failed: {response.text}"
+    token = response.json().get("access_token")
+    assert token is not None, "No access token received"
+
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.get("/auth/me", headers=headers)
+    assert response.status_code == 200, f"Get me failed: {response.text}"
+    data = response.json()
+    assert data["username"] == unique_username
