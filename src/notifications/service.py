@@ -21,6 +21,7 @@ class NotificationService:
         self.db = NotificationsDatabase(DB_CONFIG)
         self.db.connect()
         self.sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+        self.sg_client = None
         if not self.sendgrid_api_key:
             logger.warning("SENDGRID_API_KEY not set in environment variables")
         else:
