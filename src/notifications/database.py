@@ -60,12 +60,13 @@ class NotificationsDatabase:
             self.connect()  # Always connect first
             if self.connection is None:
                 raise Exception("Database connection failed")
+            safe_title = (title or "")[:255]
             with self.connection.cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO notifications (user_id, title, message)
                     VALUES (%s, %s, %s)
                     RETURNING id
-                """, (user_id, title, message))
+                """, (user_id, safe_title, message))
 
                 notification_id = cursor.fetchone()[0]
                 self.connection.commit()
