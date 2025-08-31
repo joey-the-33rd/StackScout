@@ -11,20 +11,24 @@ from src.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
-@router.post("/", response_model=NotificationResponse)
+@router.post("/", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
 async def create_notification(
     notification: NotificationCreate,
+    current_user: dict = Depends(get_current_user),
     db: NotificationsDatabase = Depends(get_notifications_db)
 ):
     """Create a new notification."""
     notification_id = db.create_notification(
-        user_id=notification.user_id,
+        user_id=current_user["id"],
         title=notification.title,
         message=notification.message
     )
     if notification_id is None:
         raise HTTPException(status_code=500, detail="Failed to create notification")
-    return db.get_user_notifications(notification.user_id, limit=1)[0]
+    created = db.get_notification_by_id(notification_id, current_user["id"])
+    if not created:
+        raise HTTPException(status_code=500, detail="Created notification not found")
+    return created
 
 @router.get("/", response_model=List[NotificationResponse])
 async def get_notifications(
@@ -47,10 +51,10 @@ async def mark_notification_as_read(
     success = db.mark_as_read(notification_id, current_user["id"])
     if not success:
         raise HTTPException(status_code=404, detail="Notification not found or not authorized")
-    notifications = db.get_user_notifications(current_user["id"], limit=1, offset=0)
-    for notification in notifications:
-        if notification["id"] == notification_id:
-            return notification
+
+    notification = db.get_notification_by_id(notification_id, current_user["id"])
+    if notification:
+        return notification
     raise HTTPException(status_code=404, detail="Notification not found")
 
 @router.get("/preferences", response_model=NotificationPreferences)
