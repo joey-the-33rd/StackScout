@@ -102,16 +102,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateFieldValidation(input, errorElement, iconElement, isValid, errorMessage) {
         if (isValid) {
-            if (input) input.classList.remove('border-red-500');
-            if (input) input.classList.add('border-green-500');
+            if (input) {
+                input.classList.remove('border-red-500');
+                input.classList.add('border-green-500');
+                input.setAttribute('aria-invalid', 'false');
+                // Remove error association when valid
+                if (errorElement) {
+                    const ids = (input.getAttribute('aria-describedby') || '')
+                        .split(' ')
+                        .filter(id => id && id !== errorElement.id)
+                        .join(' ')
+                        .trim();
+                    if (ids) {
+                        input.setAttribute('aria-describedby', ids);
+                    } else {
+                        input.removeAttribute('aria-describedby');
+                    }
+                }
+            }
             if (errorElement) errorElement.classList.remove('show');
             if (iconElement) {
                 iconElement.className = 'fas fa-check-circle success-icon';
                 iconElement.classList.remove('hidden');
             }
         } else {
-            if (input) input.classList.remove('border-green-500');
-            if (input) input.classList.add('border-red-500');
+            if (input) {
+                input.classList.remove('border-green-500');
+                input.classList.add('border-red-500');
+                input.setAttribute('aria-invalid', 'true');
+                // Ensure error element is referenced
+                if (errorElement) {
+                    const existing = (input.getAttribute('aria-describedby') || '').split(' ')
+                        .filter(Boolean);
+                    if (!existing.includes(errorElement.id)) {
+                        existing.push(errorElement.id);
+                        input.setAttribute('aria-describedby', existing.join(' ').trim());
+                    }
+                }
+            }
             if (errorElement) {
                 errorElement.textContent = errorMessage;
                 errorElement.classList.add('show');
@@ -168,7 +196,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
-            const data = await response.json();
+            let data = null;
+            try {
+                // Attempt to parse JSON only if content-type indicates JSON
+                const contentType = response.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    data = await response.json();
+                }
+            } catch (parseErr) {
+                console.warn('Failed to parse JSON response:', parseErr);
+            }
 
             if (response.ok) {
                 showSuccess();
@@ -176,7 +213,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = '/login';
                 }, 2000);
             } else {
-                showError(data.detail || 'Registration failed. Please try again.');
+                const detail = data && (data.detail || data.message) ? (data.detail || data.message) : null;
+                showError(detail || `Registration failed. Please try again. (HTTP ${response.status})`);
             }
         } catch (error) {
             console.error('Registration error:', error);
@@ -239,16 +277,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add keyboard navigation improvements
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
-            e.preventDefault();
-            const form = e.target.form;
-            const index = Array.prototype.indexOf.call(form, e.target);
-            const nextElement = form.elements[index + 1];
+        if (e.key !== 'Enter') return;
 
-            if (nextElement) {
-                nextElement.focus();
+        const target = e.target;
+        const tag = target.tagName;
+        const isButton = tag === 'BUTTON';
+        const isTextarea = tag === 'TEXTAREA';
+        const isContentEditable = target.isContentEditable === true;
+
+        // Allow native behavior for buttons, textareas, and contenteditable elements
+        if (isButton || isTextarea || isContentEditable) return;
+
+        // Only handle Enter for inputs within our register form
+        const form = target.form;
+        if (!form || form.id !== 'registerForm') return;
+
+        e.preventDefault();
+
+        const index = Array.prototype.indexOf.call(form, target);
+        const nextElement = form.elements[index + 1];
+
+        if (nextElement) {
+            nextElement.focus();
+        } else {
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
             } else {
-                form.dispatchEvent(new Event('submit'));
+                form.submit();
             }
         }
     });
