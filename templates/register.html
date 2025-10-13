@@ -147,7 +147,7 @@
                     <input type="password" id="password" name="password" required minlength="6" maxlength="100"
                         class="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
                         placeholder="Create a strong password" aria-describedby="password-error password-strength" />
-                    <i id="password-icon" class="fas fa-eye toggle-password cursor-pointer" onclick="togglePassword()" aria-label="Toggle password visibility"></i>
+                    <i id="password-icon" class="fas fa-eye toggle-password cursor-pointer" style="pointer-events: auto;" aria-label="Toggle password visibility"></i>
                 </div>
                 <div class="password-strength" id="password-strength" role="progressbar" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" aria-label="Password strength"></div>
                 <div id="password-error" class="error-message" role="alert" aria-live="polite">Password must be at least 6 characters</div>
