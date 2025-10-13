@@ -25,6 +25,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const emailIcon = document.getElementById('email-icon');
     const passwordIcon = document.getElementById('password-icon');
 
+    // Add event listener for password toggle
+    if (passwordIcon) {
+        passwordIcon.style.pointerEvents = 'auto';
+        passwordIcon.addEventListener('click', togglePassword);
+    }
+
     // Password strength
     const passwordStrength = document.getElementById('password-strength');
 
@@ -118,9 +124,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function togglePassword() {
+        console.log('Toggle password called');
         const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
         password.setAttribute('type', type);
         passwordIcon.className = type === 'password' ? 'fas fa-eye toggle-password cursor-pointer' : 'fas fa-eye-slash toggle-password cursor-pointer';
+        console.log('Password type changed to:', type);
     }
 
     // Make togglePassword function global
