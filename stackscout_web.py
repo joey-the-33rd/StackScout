@@ -254,6 +254,21 @@ async def get_jobs(
         logger.error(f"Get jobs failed: {e}")
         return JSONResponse(content={"jobs": [], "error": str(e)}, status_code=500)
 
+@app.get("/api/database/jobs/{job_id}")
+async def get_job_by_id(job_id: int):
+    """Get a specific job by ID"""
+    try:
+        storage = JobSearchStorage(DB_CONFIG)
+        job = storage.get_job_by_id(job_id)
+        storage.close()
+        if job:
+            return JSONResponse(content={"job": job})
+        else:
+            return JSONResponse(content={"error": "Job not found"}, status_code=404)
+    except Exception as e:
+        logger.error(f"Get job by ID failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
 @app.delete("/api/database/jobs/{job_id}")
 async def delete_job(job_id: int):
     """Delete a specific job"""
@@ -448,7 +463,7 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.get("/analytics", response_class=HTMLResponse)
-def analytics_dashboard(request: Request, current_user: dict = Depends(get_current_user)):
+def analytics_dashboard(request: Request, current_user: dict = Depends(get_optional_current_user)):
     """Serve the analytics dashboard page."""
     return templates.TemplateResponse("analytics_dashboard.html", {"request": request})
 

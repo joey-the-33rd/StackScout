@@ -526,6 +526,47 @@ class JobSearchStorage:
             logging.error(f"❌ Unexpected error getting filtered jobs with params limit={limit}, offset={offset}, search='{search}', platform='{platform}', status='{status}': {e}", exc_info=True)
             return []
     
+    def get_job_by_id(self, job_id):
+        """Get a specific job by ID"""
+        try:
+            if not self.connection or (hasattr(self.connection, 'closed') and self.connection.closed):
+                if not self.connect():
+                    logging.error("❌ Failed to establish database connection for retrieving job")
+                    return None
+
+            with self.connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT id, company, role, tech_stack, job_type, salary, salary_min_numeric, salary_max_numeric, salary_currency,
+                           location, description, source_platform, source_url, posted_date,
+                           scraped_date, is_active, keywords
+                    FROM jobs
+                    WHERE id = %s
+                """, (job_id,))
+                row = cursor.fetchone()
+                if row:
+                    columns = [desc[0] for desc in cursor.description]
+                    job = dict(zip(columns, row))
+                    # Convert arrays to lists
+                    if isinstance(job.get('tech_stack'), str):
+                        job['tech_stack'] = job['tech_stack'].strip('{}').split(',') if job['tech_stack'] else []
+                    if isinstance(job.get('keywords'), str):
+                        job['keywords'] = job['keywords'].strip('{}').split(',') if job['keywords'] else []
+                    # Convert datetime fields to string for JSON serialization
+                    if isinstance(job.get('posted_date'), datetime):
+                        job['posted_date'] = job['posted_date'].isoformat()
+                    if isinstance(job.get('scraped_date'), datetime):
+                        job['scraped_date'] = job['scraped_date'].isoformat()
+                    return job
+                else:
+                    logging.warning(f"⚠️ No job found with ID={job_id}")
+                    return None
+        except psycopg2.Error as e:
+            logging.error(f"❌ PostgreSQL error getting job with ID={job_id}: {e}", exc_info=True)
+            return None
+        except Exception as e:
+            logging.error(f"❌ Unexpected error getting job with ID={job_id}: {e}", exc_info=True)
+            return None
+
     def delete_job(self, job_id):
         """Delete a specific job by ID"""
         try:
@@ -533,7 +574,7 @@ class JobSearchStorage:
                 if not self.connect():
                     logging.error("❌ Failed to establish database connection for deleting job")
                     return False
-                
+
             with self.connection.cursor() as cursor:
                 cursor.execute("DELETE FROM jobs WHERE id = %s", (job_id,))
                 deleted_count = cursor.rowcount
