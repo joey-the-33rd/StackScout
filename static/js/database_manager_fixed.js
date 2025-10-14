@@ -414,7 +414,9 @@ class DatabaseManager {
     }
 }
 
+let dbManager;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize the database manager
-    const dbManager = new DatabaseManager();
+    dbManager = new DatabaseManager();
 });
