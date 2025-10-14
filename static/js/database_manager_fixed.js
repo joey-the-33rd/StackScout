@@ -264,9 +264,17 @@ class DatabaseManager {
         try {
             const response = await fetch(`/api/database/jobs/${jobId}`);
             const job = await response.json();
-            
+
             const frontendJob = this.mapJobBackendToFrontend(job);
-            
+
+            // Open the job URL in a new tab
+            if (frontendJob.source_url && frontendJob.source_url !== 'N/A') {
+                window.open(frontendJob.source_url, '_blank');
+            } else {
+                this.showNotification('Job URL not available', 'warning');
+            }
+
+            // Also show modal with details
             const modalContent = `
                 <div class="space-y-4">
                     <div>
@@ -292,7 +300,7 @@ class DatabaseManager {
                     </div>
                 </div>
             `;
-            
+
             this.showModal('Job Details', modalContent);
         } catch (error) {
             console.error('Error loading job details:', error);
@@ -406,5 +414,9 @@ class DatabaseManager {
     }
 }
 
-// Initialize the database manager
-const dbManager = new DatabaseManager();
+let dbManager;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the database manager
+    dbManager = new DatabaseManager();
+});
