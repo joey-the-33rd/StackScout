@@ -432,7 +432,7 @@ async def get_ai_tools():
     })
 
 @app.get("/api/analytics")
-async def get_analytics(current_user: dict = Depends(get_current_user)):
+async def get_analytics(current_user: dict = Depends(get_optional_current_user)):
     """Get all analytics data for the dashboard."""
     try:
         analytics_data = get_all_analytics()
@@ -448,7 +448,7 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.get("/analytics", response_class=HTMLResponse)
-def analytics_dashboard(request: Request, current_user: dict = Depends(get_current_user)):
+def analytics_dashboard(request: Request, current_user: dict = Depends(get_optional_current_user)):
     """Serve the analytics dashboard page."""
     return templates.TemplateResponse("analytics_dashboard.html", {"request": request})
 
