@@ -173,6 +173,15 @@
                 <div id="error" class="hidden text-center py-10">
                     <p class="text-xl text-red-600">Error loading analytics data. Please try again later.</p>
                 </div>
+
+                <!-- Login required message -->
+                <div id="login-required" class="hidden text-center py-10">
+                    <p class="text-xl text-blue-600 mb-4">Analytics data requires authentication.</p>
+                    <p class="text-lg text-gray-600 mb-6">Please log in to view this dashboard.</p>
+                    <a href="/login" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Log In
+                    </a>
+                </div>
             </div>
         </main>
     </div>
@@ -184,7 +193,13 @@
         // Fetch analytics data
         async function fetchAnalyticsData() {
             try {
-                const response = await fetch('/api/analytics');
+                const response = await fetch('/api/analytics', { credentials: 'include' });
+                if (response.status === 403) {
+                    // Authentication required
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('login-required').classList.remove('hidden');
+                    return;
+                }
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
