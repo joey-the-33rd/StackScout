@@ -46,6 +46,13 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Shared database storage instance for connection reuse
+storage_instance = JobSearchStorage(DB_CONFIG)
+
+def get_storage():
+    """Dependency injection for shared JobSearchStorage instance."""
+    yield storage_instance
+
 # Include authentication router
 app.include_router(auth_router)
 
@@ -171,19 +178,18 @@ async def api_search(request: SearchRequest):
                 logger.warning("Failed to close storage in api_search", exc_info=True)
 
 
-async def api_save_job(request: Request):
+@app.post("/api/save-job")
+async def api_save_job(request: Request, storage: JobSearchStorage = Depends(get_storage)):
     """API endpoint to save a job"""
     try:
         data = await request.json()
         job_data = data.get("job_data")
-        
+
         # Convert datetime and dict fields to JSON serializable format
         serialized_job = serialize_for_json(job_data)
-        
-        storage = JobSearchStorage(DB_CONFIG)
+
         success = storage.store_job(serialized_job, {})
-        storage.close()
-        
+
         return JSONResponse(content={"success": success})
     except Exception as e:
         logger.error(f"Save job failed: {e}")
