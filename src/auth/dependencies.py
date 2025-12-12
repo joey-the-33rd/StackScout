@@ -1,11 +1,14 @@
 """FastAPI dependencies for authentication."""
 
+import logging
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Generator
 from src.auth.security import verify_token
 from src.auth.database import AuthDatabase
 from job_search_storage import DB_CONFIG
+
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 optional_security = HTTPBearer(auto_error=False)
@@ -25,21 +28,32 @@ async def get_current_user(
 ) -> dict:
     """Get current authenticated user."""
     token = credentials.credentials
-    payload = verify_token(token)
-    
+    try:
+        payload = verify_token(token)
+    except Exception as e:
+        logger.error(f"Token verification failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     user = db.get_user_by_id(payload["user_id"])
     if user is None:
+        logger.error(f"User not found for user_id: {payload['user_id']}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     if not user["is_active"]:
+        logger.error(f"Inactive user: {payload['user_id']}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
         )
-    
+
+    logger.info(f"Authenticated user: {user['username']} (ID: {user['id']})")
     return user
 
 async def get_current_active_user(
