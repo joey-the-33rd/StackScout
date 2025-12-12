@@ -46,6 +46,13 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Shared database storage instance for connection reuse
+storage_instance = JobSearchStorage(DB_CONFIG)
+
+def get_storage():
+    """Dependency injection for shared JobSearchStorage instance."""
+    yield storage_instance
+
 # Include authentication router
 app.include_router(auth_router)
 
@@ -171,19 +178,18 @@ async def api_search(request: SearchRequest):
                 logger.warning("Failed to close storage in api_search", exc_info=True)
 
 
-async def api_save_job(request: Request):
+@app.post("/api/save-job")
+async def api_save_job(request: Request, storage: JobSearchStorage = Depends(get_storage)):
     """API endpoint to save a job"""
     try:
         data = await request.json()
         job_data = data.get("job_data")
-        
+
         # Convert datetime and dict fields to JSON serializable format
         serialized_job = serialize_for_json(job_data)
-        
-        storage = JobSearchStorage(DB_CONFIG)
+
         success = storage.store_job(serialized_job, {})
-        storage.close()
-        
+
         return JSONResponse(content={"success": success})
     except Exception as e:
         logger.error(f"Save job failed: {e}")
@@ -253,6 +259,21 @@ async def get_jobs(
     except Exception as e:
         logger.error(f"Get jobs failed: {e}")
         return JSONResponse(content={"jobs": [], "error": str(e)}, status_code=500)
+
+@app.get("/api/database/jobs/{job_id}")
+async def get_job_by_id(job_id: int):
+    """Get a specific job by ID"""
+    try:
+        storage = JobSearchStorage(DB_CONFIG)
+        job = storage.get_job_by_id(job_id)
+        storage.close()
+        if job:
+            return JSONResponse(content={"job": job})
+        else:
+            return JSONResponse(content={"error": "Job not found"}, status_code=404)
+    except Exception as e:
+        logger.error(f"Get job by ID failed: {e}")
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.delete("/api/database/jobs/{job_id}")
 async def delete_job(job_id: int):
@@ -432,7 +453,7 @@ async def get_ai_tools():
     })
 
 @app.get("/api/analytics")
-async def get_analytics(current_user: dict = Depends(get_current_user)):
+async def get_analytics():
     """Get all analytics data for the dashboard."""
     try:
         analytics_data = get_all_analytics()
@@ -448,7 +469,7 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.get("/analytics", response_class=HTMLResponse)
-def analytics_dashboard(request: Request, current_user: dict = Depends(get_current_user)):
+def analytics_dashboard(request: Request, current_user: dict = Depends(get_optional_current_user)):
     """Serve the analytics dashboard page."""
     return templates.TemplateResponse("analytics_dashboard.html", {"request": request})
 

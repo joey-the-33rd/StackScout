@@ -82,21 +82,37 @@ class AnalyticsEngine:
                 cursor.execute("SELECT COUNT(*) FROM users")
                 result = cursor.fetchone()
                 total_users = result[0] if result else 0
-                
+
                 cursor.execute("""
-                    SELECT COUNT(*) FROM users 
+                    SELECT COUNT(*) FROM users
                     WHERE created_at >= NOW() - INTERVAL '7 days'
                 """)
                 result = cursor.fetchone()
                 new_users = result[0] if result else 0
-                
+
+                # Saved jobs statistics (from user_job_interactions where interaction_type = 'save')
+                cursor.execute("""
+                    SELECT COUNT(*) FROM user_job_interactions
+                    WHERE interaction_type = 'save'
+                """)
+                result = cursor.fetchone()
+                total_saved_jobs = result[0] if result else 0
+
+                cursor.execute("""
+                    SELECT COUNT(*) FROM user_job_interactions
+                    WHERE interaction_type = 'save'
+                    AND interaction_date >= NOW() - INTERVAL '7 days'
+                """)
+                result = cursor.fetchone()
+                saved_jobs_this_week = result[0] if result else 0
+
                 # Recommendation statistics
                 cursor.execute("SELECT COUNT(*) FROM user_job_interactions")
                 result = cursor.fetchone()
                 total_interactions = result[0] if result else 0
-                
+
                 cursor.execute("""
-                    SELECT COUNT(DISTINCT user_id) FROM user_job_interactions 
+                    SELECT COUNT(DISTINCT user_id) FROM user_job_interactions
                     WHERE interaction_date >= CURRENT_DATE - INTERVAL '7 days'
                 """)
                 result = cursor.fetchone()
@@ -114,6 +130,10 @@ class AnalyticsEngine:
                         "total": total_users,
                         "new_this_week": new_users,
                         "active_this_week": active_users
+                    },
+                    "saved_jobs": {
+                        "total": total_saved_jobs,
+                        "this_week": saved_jobs_this_week
                     },
                     "interactions": {
                         "total": total_interactions
@@ -397,6 +417,7 @@ def get_all_analytics() -> Dict[str, Any]:
             "overall": {
                 "jobs": {"total": 0, "active": 0, "this_week": 0, "growth_rate": 0.0, "by_platform": {}},
                 "users": {"total": 0, "new_this_week": 0, "active_this_week": 0},
+                "saved_jobs": {"total": 0, "this_week": 0},
                 "interactions": {"total": 0}
             },
             "user_interactions": {

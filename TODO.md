@@ -1,7 +1,22 @@
-# TODO: Assign Images to StackScout Project
+# TODO: Add Login and Register Links to Enhanced Homepage
 
-## Tasks
-- [ ] Update templates/login.html: Set background to stackscout_background.png, replace SVG logo with stackscout_logo.png, add favicon stackscout_fav.png
-- [ ] Update templates/register.html: Same changes as login
-- [ ] Update templates/index.html: Replace text logo with stackscout_logo.png, add favicon
-- [ ] Update templates/enhanced_index.html: Replace text logo with stackscout_logo.png, add favicon
+## Task Overview
+Include register and login links on the StackScout enhanced homepage (templates/enhanced_index.html).
+
+## Current State
+- Homepage template: templates/enhanced_index.html
+- Login page: templates/login.html (served at /login)
+- Register page: templates/register.html (served at /register)
+- Routes for /login and /register are already defined in stackscout_web.py
+
+## Plan
+- [x] Edit templates/enhanced_index.html to add Login and Register links in the navigation bar
+- [x] Place links before the notification bell for logical flow
+- [x] Use consistent styling with existing nav links
+
+## Files to Edit
+- templates/enhanced_index.html
+
+## Followup Steps
+- [ ] Test the links navigate to correct pages
+- [ ] Verify styling is consistent
